@@ -46,6 +46,18 @@ the blocking gate is always a `type:command` Stop hook.)
 The plugin is **inert until initialized** — with no `.harness/config.json`, every
 hook is a no-op, so installing it on an un-initialized repo changes nothing.
 
+## Requirements
+
+| Platform | Required |
+|---|---|
+| **macOS / Linux** | `python3` (≥3.9) and `git` (both usually preinstalled). |
+| **Windows** | [Git for Windows](https://gitforwindows.org/) (provides `git` + Git Bash) and [Python 3](https://www.python.org/downloads/windows/) (≥3.9 — make sure `python` or `py -3` is on PATH). Claude Code uses Git Bash to run hooks on Windows, so **WSL is not required**. |
+
+The hook launchers (`scripts/run-hook` and `bin/harness-*`) are tiny Bash
+trampolines that locate a Python interpreter and forward to
+`scripts/harness_main.py` — all real logic lives in Python, so the same code
+runs on macOS, Linux, and Windows.
+
 ## Commands
 
 | Command | What it does |
