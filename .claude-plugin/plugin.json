@@ -9,7 +9,6 @@
   "license": "MIT",
   "keywords": ["harness", "verification", "plan", "hooks", "ci-gate", "godot", "web", "ralph-loop"],
   "defaultEnabled": true,
-  "hooks": "./hooks/hooks.json",
   "userConfig": {
     "loop_threshold": {
       "type": "number",
