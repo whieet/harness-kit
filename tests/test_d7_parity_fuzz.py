@@ -197,7 +197,7 @@ def test_doc_links_parity_random_docs(old_plugin_root, tmp_path, seed):
         d.mkdir(exist_ok=True)
         # 3 markdown files; each has a random mix of live/dead/url links
         live = d / "live.md"
-        live.write_text("alive\n")
+        live.write_text("alive\n", encoding="utf-8")
         rng_local = random.Random(seed)
         for fname in ("a.md", "b.md", "c.md"):
             lines = []
@@ -214,7 +214,7 @@ def test_doc_links_parity_random_docs(old_plugin_root, tmp_path, seed):
                 else:
                     # multi: two links on one line — bash picks the LAST one
                     lines.append("- see [a](missing.md) and [b](live.md)")
-            (d / fname).write_text("\n".join(lines) + "\n")
+            (d / fname).write_text("\n".join(lines) + "\n", encoding="utf-8")
     o = _run_old(old_plugin_root, "bin", "harness-doc-links", proj_o)
     n = _run_new("bin", "harness-doc-links", proj_n)
     _assert_parity(o, n, proj=None, ctx=f"doc-links seed={seed}")
@@ -241,7 +241,7 @@ def test_layering_parity_random_rules(old_plugin_root, tmp_path, seed):
         ]:
             (proj / d).mkdir(parents=True, exist_ok=True)
             if rng.random() < 0.7:  # randomly include the file
-                (proj / d / fname).write_text(content)
+                (proj / d / fname).write_text(content, encoding="utf-8")
     o = _run_old(old_plugin_root, "bin", "harness-check-layering", proj_o)
     n = _run_new("bin", "harness-check-layering", proj_n)
     _assert_parity(o, n, proj=None, ctx=f"layering seed={seed}")

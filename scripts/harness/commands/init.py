@@ -96,7 +96,7 @@ def _scaffold_plan_dirs(ctx: HarnessContext, tpl_root: str) -> None:
         os.makedirs(full, exist_ok=True)
         kp = os.path.join(full, ".gitkeep")
         if not os.path.isfile(kp):
-            open(kp, "a").close()
+            open(kp, "a", encoding="utf-8").close()
     tpl_src = os.path.join(tpl_root, "plan-template.md")
     tpl_dst = os.path.join(ctx.project_dir, plan_dir, "_template.md")
     if os.path.isfile(tpl_src) and not os.path.isfile(tpl_dst):

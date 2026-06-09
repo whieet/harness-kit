@@ -119,7 +119,7 @@ def test_stop_verify_failing_gate_blocks_in_strict(old_plugin_root, tmp_path):
         assert "fix the above" in r.stderr
         assert "verificationMode=strict" in r.stderr
         # Trace should record a session_end with result=failed
-        trace = (proj / ".harness" / "state" / "trace.jsonl").read_text()
+        trace = (proj / ".harness" / "state" / "trace.jsonl").read_text(encoding="utf-8")
         last = json.loads(trace.strip().splitlines()[-1])
         assert last["event"] == "session_end"
         assert last["result"] == "failed"
@@ -139,7 +139,7 @@ def test_stop_verify_failing_gate_advisory_passes(old_plugin_root, tmp_path):
             r = _run_new_hook("stop-verify", proj, _payload(proj))
         assert r.returncode == 0, f"{label}: advisory should not block; rc={r.returncode}"
         assert "advisory mode" in r.stderr
-        trace = (proj / ".harness" / "state" / "trace.jsonl").read_text()
+        trace = (proj / ".harness" / "state" / "trace.jsonl").read_text(encoding="utf-8")
         last = json.loads(trace.strip().splitlines()[-1])
         assert last["result"] == "advisory_fail"
 
@@ -149,8 +149,7 @@ def test_stop_verify_plan_dod_unfinished_blocks(old_plugin_root, tmp_path):
     for label in ("old", "new"):
         proj = make_project(tmp_path / label)
         (proj / "docs" / "plans" / "active" / "wip.md").write_text(
-            "# wip\n- [x] step a\n- [ ] step b\n- [ ] step c\n"
-        )
+            "# wip\n- [x] step a\n- [ ] step b\n- [ ] step c\n", encoding="utf-8")
         if label == "old":
             r = _run_old_hook(old_plugin_root, "on-stop-verify.sh", proj, _payload(proj))
         else:
@@ -164,8 +163,7 @@ def test_stop_verify_plan_dod_complete_passes(old_plugin_root, tmp_path):
     for label in ("old", "new"):
         proj = make_project(tmp_path / label)
         (proj / "docs" / "plans" / "active" / "done.md").write_text(
-            "# done\n- [x] step a\n- [x] step b\n"
-        )
+            "# done\n- [x] step a\n- [x] step b\n", encoding="utf-8")
         if label == "old":
             r = _run_old_hook(old_plugin_root, "on-stop-verify.sh", proj, _payload(proj))
         else:
@@ -178,7 +176,7 @@ def test_stop_verify_uncommitted_advisory(old_plugin_root, tmp_path):
     """Uncommitted changes show the ⚠️ line but do NOT block."""
     for label in ("old", "new"):
         proj = make_project(tmp_path / label)
-        (proj / "wip.txt").write_text("wip\n")
+        (proj / "wip.txt").write_text("wip\n", encoding="utf-8")
         if label == "old":
             r = _run_old_hook(old_plugin_root, "on-stop-verify.sh", proj, _payload(proj))
         else:
@@ -204,8 +202,7 @@ def test_doc_gardening_status_mismatch(old_plugin_root, tmp_path):
     for label in ("old", "new"):
         proj = make_project(tmp_path / label)
         (proj / "docs" / "plans" / "completed" / "mismatched.md").write_text(
-            "# mismatched\n- **status**: active\n"
-        )
+            "# mismatched\n- **status**: active\n", encoding="utf-8")
         if label == "old":
             r = _run_old_bin(old_plugin_root, "harness-doc-gardening", proj)
         else:
@@ -221,8 +218,7 @@ def test_doc_gardening_template_field(old_plugin_root, tmp_path):
     for label in ("old", "new"):
         proj = make_project(tmp_path / label, extra_config=extra)
         (proj / "docs" / "plans" / "completed" / "missing.md").write_text(
-            "# missing\n- **status**: completed\n\nNo DoD here.\n"
-        )
+            "# missing\n- **status**: completed\n\nNo DoD here.\n", encoding="utf-8")
         if label == "old":
             r = _run_old_bin(old_plugin_root, "harness-doc-gardening", proj)
         else:
@@ -238,7 +234,7 @@ def test_doc_gardening_placeholder(old_plugin_root, tmp_path):
         proj = make_project(tmp_path / label)
         d = proj / "docs"
         d.mkdir(exist_ok=True)
-        (d / "spec.md").write_text("# spec\n\nTODO: fill\n")
+        (d / "spec.md").write_text("# spec\n\nTODO: fill\n", encoding="utf-8")
         if label == "old":
             r = _run_old_bin(old_plugin_root, "harness-doc-gardening", proj)
         else:
@@ -258,7 +254,7 @@ def test_doc_gardening_arch_drift_forward(old_plugin_root, tmp_path):
     }
     for label in ("old", "new"):
         proj = make_project(tmp_path / label, extra_config=extra)
-        (proj / "ARCHITECTURE.md").write_text("we declare src/missing and src/present.\n")
+        (proj / "ARCHITECTURE.md").write_text("we declare src/missing and src/present.\n", encoding="utf-8")
         (proj / "src").mkdir()
         (proj / "src" / "present").mkdir()
         if label == "old":
@@ -281,8 +277,8 @@ def test_doc_gardening_naming(old_plugin_root, tmp_path):
     for label in ("old", "new"):
         proj = make_project(tmp_path / label, extra_config=extra)
         (proj / "src").mkdir()
-        (proj / "src" / "BadName.py").write_text("x = 1\n")
-        (proj / "src" / "good_name.py").write_text("x = 1\n")
+        (proj / "src" / "BadName.py").write_text("x = 1\n", encoding="utf-8")
+        (proj / "src" / "good_name.py").write_text("x = 1\n", encoding="utf-8")
         if label == "old":
             r = _run_old_bin(old_plugin_root, "harness-doc-gardening", proj)
         else:
@@ -306,8 +302,8 @@ def test_doc_links_multi_link_line_matches_bash(old_plugin_root, tmp_path):
         # Line has TWO bracket-paren constructs; bash's sed catches only the
         # LAST one (live.md, present on disk) → no failure. Python (after the
         # fix) must do the same.
-        (d / "links.md").write_text("see [dead](missing.md) and [live](live.md)\n")
-        (d / "live.md").write_text("alive\n")
+        (d / "links.md").write_text("see [dead](missing.md) and [live](live.md)\n", encoding="utf-8")
+        (d / "live.md").write_text("alive\n", encoding="utf-8")
         if label == "old":
             r = _run_old_bin(old_plugin_root, "harness-doc-links", proj)
         else:
@@ -335,7 +331,7 @@ def test_plan_approved_preserves_whitespace(old_plugin_root, tmp_path):
             if p.suffix == ".md" and p.name != ".gitkeep"
         ]
         assert len(files) == 1
-        body = files[0].read_text()
+        body = files[0].read_text(encoding="utf-8")
         # The literal plan (with its leading/trailing blank lines) should
         # appear verbatim inside the saved file body.
         assert plan in body, f"{label}: plan whitespace was rewritten\nbody:\n{body}"
@@ -387,7 +383,7 @@ def test_trace_jsonl_uses_compact_separators(tmp_path):
         check=False,
     )
     assert r.returncode == 0
-    line = (proj / ".harness" / "state" / "trace.jsonl").read_text().strip()
+    line = (proj / ".harness" / "state" / "trace.jsonl").read_text(encoding="utf-8").strip()
     # Compact: no ": " and no ", "
     assert ": " not in line, f"trace line has space after colon: {line!r}"
     assert ", " not in line, f"trace line has space after comma: {line!r}"

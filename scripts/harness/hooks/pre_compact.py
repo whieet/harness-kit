@@ -105,7 +105,7 @@ def run() -> int:
         with open(os.path.join(state, "pre-compact-snapshot.json"), "w", encoding="utf-8") as fh:
             json.dump(snap, fh, ensure_ascii=False)
         # Touch the dirty marker.
-        open(os.path.join(state, "pre-compact.dirty"), "w").close()
+        open(os.path.join(state, "pre-compact.dirty"), "w", encoding="utf-8").close()
     except OSError:
         pass
     return 0

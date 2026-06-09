@@ -49,7 +49,7 @@ def test_concurrent_post_tool_writes_no_corruption(tmp_path):
             r = f.result()
             assert r.returncode == 0, f"concurrent write failed: {r.stderr}"
 
-    lines = (state / "trace.jsonl").read_text().splitlines()
+    lines = (state / "trace.jsonl").read_text(encoding="utf-8").splitlines()
     assert len(lines) == N, f"expected exactly {N} lines, got {len(lines)}"
     # Each line must be valid JSON with the expected event/tool fields
     tools_seen = set()
@@ -70,7 +70,7 @@ def test_concurrent_post_edit_writes_per_session_isolated(tmp_path):
         extra_config={"plan": {"codeGlob": r"\.py$"}, "loopDetection": {"threshold": 99}},
     )
     f = proj / "shared.py"
-    f.write_text("a=1\n")
+    f.write_text("a=1\n", encoding="utf-8")
     subprocess.run(["git", "-C", str(proj), "add", "."], check=True)
 
     def one(sid: str):
@@ -89,8 +89,8 @@ def test_concurrent_post_edit_writes_per_session_isolated(tmp_path):
             assert r.returncode in (0, 2)
 
     # Both per-session files exist; each has a count for shared.py
-    alpha = json.loads((proj / ".harness" / "state" / "loop-alpha.json").read_text())
-    beta = json.loads((proj / ".harness" / "state" / "loop-beta.json").read_text())
+    alpha = json.loads((proj / ".harness" / "state" / "loop-alpha.json").read_text(encoding="utf-8"))
+    beta = json.loads((proj / ".harness" / "state" / "loop-beta.json").read_text(encoding="utf-8"))
     # Total writes across both sessions ≥ 2 each (we fired 2 per session, but race
     # might have one read-modify-write hit a stale read — that's an inherent
     # filesystem race the bash impl ALSO has, so just assert non-zero)

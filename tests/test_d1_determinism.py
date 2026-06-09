@@ -68,7 +68,7 @@ def test_pre_edit_does_not_duplicate_scaffold(tmp_path):
     proj = make_project(tmp_path, extra_config={"plan": {"codeGlob": r"\.py$"}})
     (proj / "src").mkdir()
     f = proj / "src" / "x.py"
-    f.write_text("a=1\n")
+    f.write_text("a=1\n", encoding="utf-8")
     payload = json.dumps({
         "cwd": str(proj),
         "session_id": "s",
@@ -93,7 +93,7 @@ def test_post_tool_appends_exactly_one_record_per_call(tmp_path):
     for i in range(N):
         r = run_dispatch("post-tool", proj, stdin=payload)
         assert r.returncode == 0, f"run #{i}: rc={r.returncode}"
-    trace = (proj / ".harness" / "state" / "trace.jsonl").read_text()
+    trace = (proj / ".harness" / "state" / "trace.jsonl").read_text(encoding="utf-8")
     lines = [l for l in trace.splitlines() if l.strip()]
     assert len(lines) == N, f"expected {N} trace records, got {len(lines)}"
     for line in lines:
@@ -112,8 +112,8 @@ def test_user_prompt_clears_dirty_marker_exactly_once(tmp_path):
         "plans": [],
         "lastGateResult": "passed",
         "recentFailedGates": [],
-    }))
-    (state / "pre-compact.dirty").write_text("")
+    }), encoding="utf-8")
+    (state / "pre-compact.dirty").write_text("", encoding="utf-8")
     payload = json.dumps({"cwd": str(proj)})
     r1 = run_dispatch("user-prompt", proj, stdin=payload)
     assert r1.returncode == 0
@@ -132,15 +132,14 @@ def test_pre_compact_overwrites_snapshot_cleanly(tmp_path):
     r1 = run_dispatch("pre-compact", proj, stdin=payload)
     assert r1.returncode == 0
     snap_path = proj / ".harness" / "state" / "pre-compact-snapshot.json"
-    snap1 = json.loads(snap_path.read_text())
+    snap1 = json.loads(snap_path.read_text(encoding="utf-8"))
     assert snap1["plans"] == []
     # Now add a plan with partial DoD and snapshot again
     (proj / "docs" / "plans" / "active" / "p.md").write_text(
-        "# p\n- [x] one\n- [ ] two\n"
-    )
+        "# p\n- [x] one\n- [ ] two\n", encoding="utf-8")
     r2 = run_dispatch("pre-compact", proj, stdin=payload)
     assert r2.returncode == 0
-    snap2 = json.loads(snap_path.read_text())
+    snap2 = json.loads(snap_path.read_text(encoding="utf-8"))
     assert snap2["plans"] == [{"name": "p.md", "checked": 1, "total": 2}]
     # Timestamp should be different (or at least snapshot replaced cleanly)
     assert (proj / ".harness" / "state" / "pre-compact.dirty").exists()

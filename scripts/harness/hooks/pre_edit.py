@@ -65,11 +65,14 @@ def run() -> int:
         return 0
 
     # Realpath-based relpath: cwd and project root may differ by a symlink
-    # (e.g. /var -> /private/var on macOS).
+    # (e.g. /var -> /private/var on macOS). Also normalize to forward slashes
+    # so the substring check below works consistently on Windows where
+    # os.path.relpath returns backslashes.
     try:
         rel_path = os.path.relpath(os.path.realpath(fp), os.path.realpath(ctx.project_dir))
     except ValueError:
         rel_path = fp
+    rel_path = rel_path.replace("\\", "/")
 
     plan_dir = ctx.cfg_get_str("plan.dir", "docs/exec-plans")
     active_dir = os.path.join(plan_dir, "active")
@@ -96,7 +99,9 @@ def run() -> int:
     title = _title_for(rel_path)
 
     os.makedirs(active_dir, exist_ok=True)
-    plan_file = os.path.join(active_dir, f"auto-{date}-{time_}-{slug}.md")
+    # Forward-slash the path we surface to Claude; on Windows os.path.join
+    # uses backslashes which look odd in the additionalContext / saved logs.
+    plan_file = os.path.join(active_dir, f"auto-{date}-{time_}-{slug}.md").replace("\\", "/")
 
     tpl = util.safe_read(template)
     source = "plan-gate (auto-created on first edit of `%s` with no covering plan)" % rel_path

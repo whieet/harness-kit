@@ -184,8 +184,8 @@ def test_pre_edit_scaffolds_plan_when_uncovered(old_plugin_root, tmp_path):
     # (make_project already created them under tmp_path/old/proj and tmp_path/new/proj.)
     (proj_old / "src").mkdir()
     (proj_new / "src").mkdir()
-    (proj_old / "src" / "thing.py").write_text("x = 1\n")
-    (proj_new / "src" / "thing.py").write_text("x = 1\n")
+    (proj_old / "src" / "thing.py").write_text("x = 1\n", encoding="utf-8")
+    (proj_new / "src" / "thing.py").write_text("x = 1\n", encoding="utf-8")
 
     payload_old = _payload(proj_old, tool_name="Edit", tool_input={"file_path": str(proj_old / "src" / "thing.py")})
     payload_new = _payload(proj_new, tool_name="Edit", tool_input={"file_path": str(proj_new / "src" / "thing.py")})
@@ -205,7 +205,7 @@ def test_pre_edit_scaffolds_plan_when_uncovered(old_plugin_root, tmp_path):
     assert old_slug == new_slug == "src-thing.md"
 
     # Plan bodies should be essentially the same after normalization.
-    assert _norm(old_plans[0].read_text(), proj=proj_old) == _norm(new_plans[0].read_text(), proj=proj_new)
+    assert _norm(old_plans[0].read_text(encoding="utf-8"), proj=proj_old) == _norm(new_plans[0].read_text(encoding="utf-8"), proj=proj_new)
 
 
 def test_pre_edit_skips_when_plan_covers_file(old_plugin_root, tmp_path):
@@ -214,11 +214,10 @@ def test_pre_edit_skips_when_plan_covers_file(old_plugin_root, tmp_path):
         proj = make_project(tmp_path / label, extra_config={"plan": {"codeGlob": r"\.py$"}})
         (proj / "src").mkdir()
         target = proj / "src" / "thing.py"
-        target.write_text("x = 1\n")
+        target.write_text("x = 1\n", encoding="utf-8")
         # Pre-existing plan that references the file path:
         (proj / "docs" / "plans" / "active" / "existing.md").write_text(
-            "# existing\nthis touches src/thing.py\n"
-        )
+            "# existing\nthis touches src/thing.py\n", encoding="utf-8")
         payload = _payload(proj, tool_name="Edit", tool_input={"file_path": str(target)})
         if label == "old":
             r = _run_old_hook(old_plugin_root, "on-pre-edit.sh", proj, payload)
@@ -241,11 +240,11 @@ def test_post_edit_loop_threshold(old_plugin_root, tmp_path):
             },
         )
         f = proj / "loopy.py"
-        f.write_text("a = 1\n")
+        f.write_text("a = 1\n", encoding="utf-8")
         # Simulate edits by writing different contents AND staging so git diff --numstat reports.
         edits_seen = 0
         for i in range(3):
-            f.write_text(f"a = {i}\n")
+            f.write_text(f"a = {i}\n", encoding="utf-8")
             subprocess.run(["git", "-C", str(proj), "add", "loopy.py"], check=True)
             payload = _payload(proj, tool_name="Edit", tool_input={"file_path": str(f)})
             if label == "old":
@@ -277,8 +276,8 @@ def test_user_prompt_with_snapshot(old_plugin_root, tmp_path):
             "plans": [{"name": "foo.md", "checked": 1, "total": 3}],
             "lastGateResult": "failed",
             "recentFailedGates": ["typecheck", "eslint"],
-        }))
-        (state / "pre-compact.dirty").write_text("")
+        }), encoding="utf-8")
+        (state / "pre-compact.dirty").write_text("", encoding="utf-8")
         payload = _payload(proj)
         if label == "old":
             r = _run_old_hook(old_plugin_root, "on-user-prompt.sh", proj, payload)
@@ -300,12 +299,11 @@ def test_pre_compact_writes_snapshot(old_plugin_root, tmp_path):
         proj = make_project(tmp_path / label)
         # Plant an active plan with partial DoD.
         (proj / "docs" / "plans" / "active" / "p1.md").write_text(
-            "# p1\n- [x] step a\n- [ ] step b\n- [ ] step c\n"
-        )
+            "# p1\n- [x] step a\n- [ ] step b\n- [ ] step c\n", encoding="utf-8")
         # Plant a trace with a session_end and a failing gate.
         state = proj / ".harness" / "state"
         state.mkdir(parents=True, exist_ok=True)
-        with open(state / "trace.jsonl", "w") as f:
+        with open(state / "trace.jsonl", "w", encoding="utf-8") as f:
             f.write(json.dumps({"ts": "2025-01-01T00:00:00Z", "event": "session_end", "result": "failed"}) + "\n")
             f.write(json.dumps({"ts": "2025-01-01T00:00:00Z", "event": "gate", "name": "eslint", "ok": False}) + "\n")
         payload = _payload(proj)
@@ -314,7 +312,7 @@ def test_pre_compact_writes_snapshot(old_plugin_root, tmp_path):
         else:
             r = _run_new_hook("pre-compact", proj, payload)
         assert r.returncode == 0, r.stderr
-        snap = json.loads((state / "pre-compact-snapshot.json").read_text())
+        snap = json.loads((state / "pre-compact-snapshot.json").read_text(encoding="utf-8"))
         assert snap["plans"] == [{"name": "p1.md", "checked": 1, "total": 3}]
         assert snap["lastGateResult"] == "failed"
         assert snap["recentFailedGates"] == ["eslint"]
@@ -330,7 +328,7 @@ def test_post_tool_appends_trace(old_plugin_root, tmp_path):
         else:
             r = _run_new_hook("post-tool", proj, payload)
         assert r.returncode == 0
-        trace = (proj / ".harness" / "state" / "trace.jsonl").read_text()
+        trace = (proj / ".harness" / "state" / "trace.jsonl").read_text(encoding="utf-8")
         rec = json.loads(trace.strip().splitlines()[-1])
         assert rec["event"] == "tool_call"
         assert rec["tool"] == "Bash"
@@ -345,7 +343,7 @@ def test_tool_failure_appends_trace(old_plugin_root, tmp_path):
         else:
             r = _run_new_hook("tool-failure", proj, payload)
         assert r.returncode == 0
-        trace = (proj / ".harness" / "state" / "trace.jsonl").read_text()
+        trace = (proj / ".harness" / "state" / "trace.jsonl").read_text(encoding="utf-8")
         rec = json.loads(trace.strip().splitlines()[-1])
         assert rec["event"] == "tool_fail"
         assert rec["tool"] == "Bash"
@@ -366,7 +364,7 @@ def test_plan_approved_persists_plan(old_plugin_root, tmp_path):
         files = list((proj / "docs" / "plans" / "active").glob("*.md"))
         files = [f for f in files if f.name != ".gitkeep"]
         assert len(files) == 1, f"{label}: expected one file, got {files}"
-        body = files[0].read_text()
+        body = files[0].read_text(encoding="utf-8")
         assert "# My Plan" in body
         assert "Definition of Done" in body
         assert "harness-verify" in body
@@ -443,7 +441,7 @@ def test_init_godot(old_plugin_root, tmp_path):
         # plan.dir is configured to docs/plans for the custom preset
         assert (proj / "docs" / "plans" / "active" / ".gitkeep").exists()
         assert (proj / "docs" / "plans" / "completed" / ".gitkeep").exists()
-        assert (proj / ".harness" / ".gitignore").read_text().strip() == "state/"
+        assert (proj / ".harness" / ".gitignore").read_text(encoding="utf-8").strip() == "state/"
 
 
 def test_check_plan_dod_flags_uncompleted(old_plugin_root, tmp_path):
@@ -451,8 +449,7 @@ def test_check_plan_dod_flags_uncompleted(old_plugin_root, tmp_path):
     for label in ("old", "new"):
         proj = make_project(tmp_path / label)
         (proj / "docs" / "plans" / "active" / "stuck.md").write_text(
-            "# stuck\n- **status**: completed\n- [x] one\n- [x] two\n"
-        )
+            "# stuck\n- **status**: completed\n- [x] one\n- [x] two\n", encoding="utf-8")
         if label == "old":
             r = _run_old_bin(old_plugin_root, "harness-check-plan-dod", proj)
         else:
@@ -480,7 +477,7 @@ def test_check_layering_violation(old_plugin_root, tmp_path):
         proj = make_project(tmp_path / label, extra_config=extra)
         ui = proj / "src" / "ui"
         ui.mkdir(parents=True)
-        (ui / "widget.py").write_text("import db\nprint('hi')\n")
+        (ui / "widget.py").write_text("import db\nprint('hi')\n", encoding="utf-8")
         if label == "old":
             r = _run_old_bin(old_plugin_root, "harness-check-layering", proj)
         else:
@@ -494,7 +491,7 @@ def test_doc_links_dead_link(old_plugin_root, tmp_path):
     for label in ("old", "new"):
         proj = make_project(tmp_path / label)
         (proj / "docs").mkdir(exist_ok=True)
-        (proj / "docs" / "a.md").write_text("link: [x](missing.md)\n")
+        (proj / "docs" / "a.md").write_text("link: [x](missing.md)\n", encoding="utf-8")
         if label == "old":
             r = _run_old_bin(old_plugin_root, "harness-doc-links", proj)
         else:
@@ -526,7 +523,7 @@ def test_trace_analyze_json(old_plugin_root, tmp_path):
         proj = make_project(tmp_path / label)
         state = proj / ".harness" / "state"
         state.mkdir(parents=True, exist_ok=True)
-        with open(state / "trace.jsonl", "w") as f:
+        with open(state / "trace.jsonl", "w", encoding="utf-8") as f:
             f.write(json.dumps({"event": "session_start"}) + "\n")
             f.write(json.dumps({"event": "tool_call", "tool": "Edit"}) + "\n")
             f.write(json.dumps({"event": "session_end", "result": "passed"}) + "\n")
@@ -547,17 +544,17 @@ def test_maintenance_migrates_legacy_phases(old_plugin_root, tmp_path):
         proj = make_project(tmp_path / label)
         # Inject legacy `phases` (and strip the new keys so migration triggers).
         cfg_path = proj / ".harness" / "config.json"
-        cfg = json.loads(cfg_path.read_text())
+        cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
         cfg["phases"] = [{"name": "old-phase"}]
         cfg.pop("enabledCapabilities", None)
         cfg.pop("effortRouting", None)
-        cfg_path.write_text(json.dumps(cfg, indent=2))
+        cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
         if label == "old":
             r = _run_old_bin(old_plugin_root, "harness-maintenance", proj)
         else:
             r = _run_new_bin("harness-maintenance", proj)
         assert r.returncode == 0, f"{label}: rc={r.returncode}\n{r.stdout}\n{r.stderr}"
-        new_cfg = json.loads(cfg_path.read_text())
+        new_cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
         assert "phases" not in new_cfg
         assert "enabledCapabilities" in new_cfg
         assert "effortRouting" in new_cfg

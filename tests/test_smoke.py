@@ -82,7 +82,7 @@ def test_pre_edit_scaffolds(tmp_path):
     proj = make_project(tmp_path, extra_config={"plan": {"codeGlob": r"\.py$"}})
     (proj / "src").mkdir()
     target = proj / "src" / "thing.py"
-    target.write_text("a = 1\n")
+    target.write_text("a = 1\n", encoding="utf-8")
     payload = json.dumps({
         "cwd": str(proj),
         "tool_name": "Edit",
@@ -94,7 +94,7 @@ def test_pre_edit_scaffolds(tmp_path):
     assert "auto-" in out["hookSpecificOutput"]["additionalContext"]
     plans = list((proj / "docs" / "plans" / "active").glob("auto-*.md"))
     assert len(plans) == 1
-    body = plans[0].read_text()
+    body = plans[0].read_text(encoding="utf-8")
     assert "src/thing.py" in body
     assert "Definition of Done" in body
 
@@ -103,10 +103,9 @@ def test_pre_edit_respects_existing_plan(tmp_path):
     proj = make_project(tmp_path, extra_config={"plan": {"codeGlob": r"\.py$"}})
     (proj / "src").mkdir()
     target = proj / "src" / "thing.py"
-    target.write_text("a = 1\n")
+    target.write_text("a = 1\n", encoding="utf-8")
     (proj / "docs" / "plans" / "active" / "exists.md").write_text(
-        "# exists\nrefers to src/thing.py\n"
-    )
+        "# exists\nrefers to src/thing.py\n", encoding="utf-8")
     payload = json.dumps({
         "cwd": str(proj),
         "tool_name": "Edit",
@@ -125,10 +124,10 @@ def test_post_edit_loop_trigger(tmp_path):
         extra_config={"plan": {"codeGlob": r"\.py$"}, "loopDetection": {"threshold": 2}},
     )
     f = proj / "loopy.py"
-    f.write_text("a = 0\n")
+    f.write_text("a = 0\n", encoding="utf-8")
     triggered = False
     for i in range(3):
-        f.write_text(f"a = {i + 1}\n")
+        f.write_text(f"a = {i + 1}\n", encoding="utf-8")
         subprocess.run(["git", "-C", str(proj), "add", "loopy.py"], check=True)
         payload = json.dumps({
             "cwd": str(proj),
@@ -152,8 +151,8 @@ def test_user_prompt_recovery(tmp_path):
         "plans": [{"name": "foo.md", "checked": 1, "total": 3}],
         "lastGateResult": "failed",
         "recentFailedGates": ["tsc"],
-    }))
-    (state / "pre-compact.dirty").write_text("")
+    }), encoding="utf-8")
+    (state / "pre-compact.dirty").write_text("", encoding="utf-8")
     r = run_dispatch("user-prompt", proj, stdin=json.dumps({"cwd": str(proj)}))
     assert r.returncode == 0
     out = json.loads(r.stdout.strip())
@@ -166,16 +165,15 @@ def test_user_prompt_recovery(tmp_path):
 def test_pre_compact_snapshot(tmp_path):
     proj = make_project(tmp_path)
     (proj / "docs" / "plans" / "active" / "p1.md").write_text(
-        "# p1\n- [x] step a\n- [ ] step b\n"
-    )
+        "# p1\n- [x] step a\n- [ ] step b\n", encoding="utf-8")
     state = proj / ".harness" / "state"
     state.mkdir(parents=True, exist_ok=True)
-    with open(state / "trace.jsonl", "w") as fh:
+    with open(state / "trace.jsonl", "w", encoding="utf-8") as fh:
         fh.write(json.dumps({"event": "session_end", "result": "advisory_fail"}) + "\n")
         fh.write(json.dumps({"event": "gate", "name": "tsc", "ok": False}) + "\n")
     r = run_dispatch("pre-compact", proj, stdin=json.dumps({"cwd": str(proj)}))
     assert r.returncode == 0, r.stderr
-    snap = json.loads((state / "pre-compact-snapshot.json").read_text())
+    snap = json.loads((state / "pre-compact-snapshot.json").read_text(encoding="utf-8"))
     assert snap["plans"] == [{"name": "p1.md", "checked": 1, "total": 2}]
     assert snap["lastGateResult"] == "advisory_fail"
     assert snap["recentFailedGates"] == ["tsc"]
@@ -191,7 +189,7 @@ def test_post_tool_trace_write(tmp_path):
     })
     r = run_dispatch("post-tool", proj, stdin=payload)
     assert r.returncode == 0
-    lines = (proj / ".harness" / "state" / "trace.jsonl").read_text().splitlines()
+    lines = (proj / ".harness" / "state" / "trace.jsonl").read_text(encoding="utf-8").splitlines()
     rec = json.loads(lines[-1])
     assert rec["event"] == "tool_call"
     assert rec["tool"] == "Bash"
@@ -208,7 +206,7 @@ def test_tool_failure_trace_write(tmp_path):
     })
     r = run_dispatch("tool-failure", proj, stdin=payload)
     assert r.returncode == 0
-    rec = json.loads((proj / ".harness" / "state" / "trace.jsonl").read_text().strip())
+    rec = json.loads((proj / ".harness" / "state" / "trace.jsonl").read_text(encoding="utf-8").strip())
     assert rec["event"] == "tool_fail"
     assert rec["exit_code"] == 17
 
@@ -229,7 +227,7 @@ def test_plan_approved_writes_file(tmp_path):
     ]
     assert len(files) == 1
     assert "adopt-foo" in files[0].name
-    assert "# Adopt Foo" in files[0].read_text()
+    assert "# Adopt Foo" in files[0].read_text(encoding="utf-8")
 
 
 def test_verify_no_gates(tmp_path):
@@ -266,8 +264,7 @@ def test_advisor_dashboard(tmp_path):
 def test_check_plan_dod_flags_archive_needed(tmp_path):
     proj = make_project(tmp_path)
     (proj / "docs" / "plans" / "active" / "done.md").write_text(
-        "# done\n- **status**: active\n- [x] one\n- [x] two\n"
-    )
+        "# done\n- **status**: active\n- [x] one\n- [x] two\n", encoding="utf-8")
     r = run_dispatch("harness-check-plan-dod", proj)
     assert r.returncode == 1
     assert "done.md" in r.stdout
@@ -289,7 +286,7 @@ def test_check_layering_violation(tmp_path):
     )
     ui = proj / "src" / "ui"
     ui.mkdir(parents=True)
-    (ui / "w.py").write_text("import db\n")
+    (ui / "w.py").write_text("import db\n", encoding="utf-8")
     r = run_dispatch("harness-check-layering", proj)
     assert r.returncode == 1
     assert "UI must not import db" in r.stdout
@@ -299,7 +296,7 @@ def test_check_layering_violation(tmp_path):
 def test_doc_links_dead(tmp_path):
     proj = make_project(tmp_path)
     (proj / "docs").mkdir(exist_ok=True)
-    (proj / "docs" / "a.md").write_text("see [m](missing.md)\n")
+    (proj / "docs" / "a.md").write_text("see [m](missing.md)\n", encoding="utf-8")
     r = run_dispatch("harness-doc-links", proj)
     assert r.returncode == 1
     assert "missing.md" in r.stderr
@@ -309,8 +306,8 @@ def test_doc_links_dead(tmp_path):
 def test_doc_links_live(tmp_path):
     proj = make_project(tmp_path)
     (proj / "docs").mkdir(exist_ok=True)
-    (proj / "docs" / "a.md").write_text("see [b](b.md)\n")
-    (proj / "docs" / "b.md").write_text("hi\n")
+    (proj / "docs" / "a.md").write_text("see [b](b.md)\n", encoding="utf-8")
+    (proj / "docs" / "b.md").write_text("hi\n", encoding="utf-8")
     r = run_dispatch("harness-doc-links", proj)
     assert r.returncode == 0
     assert "doc links OK" in r.stdout
@@ -320,7 +317,7 @@ def test_trace_analyze_json(tmp_path):
     proj = make_project(tmp_path)
     state = proj / ".harness" / "state"
     state.mkdir(parents=True, exist_ok=True)
-    with open(state / "trace.jsonl", "w") as fh:
+    with open(state / "trace.jsonl", "w", encoding="utf-8") as fh:
         for ev in (
             {"event": "session_start"},
             {"event": "tool_call", "tool": "Edit"},
@@ -340,14 +337,14 @@ def test_trace_analyze_json(tmp_path):
 def test_maintenance_migrates_legacy_phases(tmp_path):
     proj = make_project(tmp_path)
     cfg_path = proj / ".harness" / "config.json"
-    cfg = json.loads(cfg_path.read_text())
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
     cfg["phases"] = [{"name": "old"}]
     cfg.pop("enabledCapabilities", None)
     cfg.pop("effortRouting", None)
-    cfg_path.write_text(json.dumps(cfg, indent=2))
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
     r = run_dispatch("harness-maintenance", proj)
     assert r.returncode == 0
-    new_cfg = json.loads(cfg_path.read_text())
+    new_cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
     assert "phases" not in new_cfg
     assert "enabledCapabilities" in new_cfg
     assert "effortRouting" in new_cfg

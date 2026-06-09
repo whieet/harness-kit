@@ -24,7 +24,7 @@ def _mkrepo(parent: Path, name: str = "proj", make_commit: bool = True) -> Path:
     for k, v in (("user.email", "t@t"), ("user.name", "t")):
         subprocess.run(["git", "-C", str(proj), "config", k, v], check=True)
     if make_commit:
-        (proj / "README.md").write_text("# r\n")
+        (proj / "README.md").write_text("# r\n", encoding="utf-8")
         subprocess.run(["git", "-C", str(proj), "add", "."], check=True)
         subprocess.run(["git", "-C", str(proj), "commit", "-q", "-m", "init"], check=True)
     return proj
@@ -47,7 +47,7 @@ def _harness_init(proj: Path, **cfg_overrides) -> None:
         },
     }
     base.update(cfg_overrides)
-    (h / "config.json").write_text(json.dumps(base))
+    (h / "config.json").write_text(json.dumps(base), encoding="utf-8")
     for sub in ("active", "completed"):
         d = proj / "docs" / "plans" / sub
         d.mkdir(parents=True, exist_ok=True)
@@ -148,7 +148,7 @@ def test_detached_head(tmp_path):
     proj = _mkrepo(tmp_path)
     _harness_init(proj)
     # Make a second commit then check out the first one (detached)
-    (proj / "x.txt").write_text("1\n")
+    (proj / "x.txt").write_text("1\n", encoding="utf-8")
     subprocess.run(["git", "-C", str(proj), "add", "."], check=True)
     subprocess.run(["git", "-C", str(proj), "commit", "-q", "-m", "second"], check=True)
     first = subprocess.run(
@@ -188,8 +188,7 @@ def test_corrupt_trace_jsonl(tmp_path):
         'this is not json\n'
         '{"event":"session_end","result":"passed"}\n'
         '\n'  # blank line
-        'random garbage\n'
-    )
+        'random garbage\n', encoding="utf-8")
     r = run_dispatch("harness-trace-analyze", proj)
     assert r.returncode == 0, f"corrupt trace crashed trace-analyze\n{r.stderr}"
     # The valid records should still count
@@ -201,7 +200,7 @@ def test_corrupt_config_json(tmp_path):
     """A malformed config.json: maintenance should report cleanly, hooks should no-op."""
     proj = _mkrepo(tmp_path)
     (proj / ".harness").mkdir()
-    (proj / ".harness" / "config.json").write_text("not valid json {")
+    (proj / ".harness" / "config.json").write_text("not valid json {", encoding="utf-8")
     r = run_dispatch("harness-maintenance", proj)
     assert r.returncode == 0
     assert "INVALID JSON" in r.stdout
@@ -216,9 +215,9 @@ def test_corrupt_loop_state_file(tmp_path):
     _harness_init(proj)
     state = proj / ".harness" / "state"
     state.mkdir(parents=True, exist_ok=True)
-    (state / "loop-default.json").write_text("not json")
+    (state / "loop-default.json").write_text("not json", encoding="utf-8")
     f = proj / "x.py"
-    f.write_text("a=1\n")
+    f.write_text("a=1\n", encoding="utf-8")
     subprocess.run(["git", "-C", str(proj), "add", "."], check=True)
     payload = json.dumps({
         "cwd": str(proj), "session_id": "default", "tool_name": "Edit",
@@ -234,8 +233,8 @@ def test_corrupt_snapshot_json(tmp_path):
     _harness_init(proj)
     state = proj / ".harness" / "state"
     state.mkdir(parents=True, exist_ok=True)
-    (state / "pre-compact-snapshot.json").write_text("not json")
-    (state / "pre-compact.dirty").write_text("")
+    (state / "pre-compact-snapshot.json").write_text("not json", encoding="utf-8")
+    (state / "pre-compact.dirty").write_text("", encoding="utf-8")
     payload = json.dumps({"cwd": str(proj)})
     r = run_dispatch("user-prompt", proj, stdin=payload)
     assert r.returncode == 0
@@ -284,4 +283,4 @@ def test_post_tool_with_no_tool_name(tmp_path):
     # No record should be appended without a tool name
     trace = proj / ".harness" / "state" / "trace.jsonl"
     if trace.exists():
-        assert trace.read_text().strip() == ""
+        assert trace.read_text(encoding="utf-8").strip() == ""
