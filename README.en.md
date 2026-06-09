@@ -100,10 +100,17 @@ Every principle is derived from the thesis above, in a **Problem â†’ Reasoning â
 
 ### Install
 
-```
+Harness Kit is distributed as a custom marketplace from this GitHub repo:
+
+```text
 /plugin marketplace add whieet/harness-kit
 /plugin install harness-kit@harness-kit
+/reload-plugins
 ```
+
+- The first command registers GitHub repo `whieet/harness-kit` as a local plugin marketplace.
+- The second command installs the `harness-kit` plugin from that marketplace.
+- `reload-plugins` activates it in the current session (no restart needed).
 
 ### Initialize
 

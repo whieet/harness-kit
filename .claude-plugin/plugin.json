@@ -8,7 +8,7 @@
   "repository": "https://github.com/whieet/harness-kit",
   "license": "MIT",
   "keywords": ["harness", "verification", "plan", "hooks", "ci-gate", "godot", "web", "ralph-loop"],
-  "defaultEnabled": false,
+  "defaultEnabled": true,
   "hooks": "./hooks/hooks.json",
   "userConfig": {
     "loop_threshold": {
