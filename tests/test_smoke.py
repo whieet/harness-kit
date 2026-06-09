@@ -31,8 +31,7 @@ def test_imports_clean():
         cwd=str(REPO_ROOT),
         capture_output=True,
         text=True,
-        check=False,
-    )
+        check=False, encoding="utf-8", errors="replace")
     assert r.returncode == 0, r.stderr
 
 
@@ -41,8 +40,7 @@ def test_help_when_no_args():
         [sys.executable, str(REPO_ROOT / "scripts" / "harness_main.py")],
         capture_output=True,
         text=True,
-        check=False,
-    )
+        check=False, encoding="utf-8", errors="replace")
     assert r.returncode == 2
     assert "Known hooks" in r.stderr
     assert "session-start" in r.stderr
@@ -367,8 +365,7 @@ def test_init_custom(tmp_path):
         capture_output=True,
         text=True,
         env=env,
-        check=False,
-    )
+        check=False, encoding="utf-8", errors="replace")
     assert r.returncode == 0, r.stderr
     assert (proj / ".harness" / "config.json").exists()
     assert (proj / "docs" / "plans" / "active" / ".gitkeep").exists()

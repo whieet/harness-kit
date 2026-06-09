@@ -46,8 +46,7 @@ def _find_last_commit_with_old_bash() -> str | None:
             ["git", "-C", str(REPO), "log", "--all", "--format=%H", "-n", "200"],
             capture_output=True,
             text=True,
-            check=True,
-        )
+            check=True, encoding="utf-8", errors="replace")
     except (FileNotFoundError, subprocess.CalledProcessError):
         return None
     for sha in log.stdout.splitlines():
@@ -58,8 +57,7 @@ def _find_last_commit_with_old_bash() -> str | None:
         r = subprocess.run(
             ["git", "-C", str(REPO), "cat-file", "-e", f"{sha}:{CANARY}"],
             capture_output=True,
-            check=False,
-        )
+            check=False, encoding="utf-8", errors="replace")
         if r.returncode == 0:
             return sha
     return None
@@ -74,6 +72,7 @@ def old_plugin_root(tmp_path_factory) -> Path:
             "parity oracle unavailable (try fetch-depth: 0 in CI)"
         )
     out = tmp_path_factory.mktemp("old-plugin")
+    # `git archive` emits a binary tar stream — must NOT decode as text.
     archive = subprocess.run(
         ["git", "-C", str(REPO), "archive", sha],
         capture_output=True,

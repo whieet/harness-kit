@@ -58,8 +58,7 @@ def _run_old(old: Path, kind: str, name: str, proj: Path, stdin: str = "", args=
         capture_output=True,
         text=True,
         env={**os.environ, "CLAUDE_PROJECT_DIR": str(proj)},
-        check=False,
-    )
+        check=False, encoding="utf-8", errors="replace")
 
 
 def _run_new(kind: str, name_or_dispatch: str, proj: Path, stdin: str = "", args=None):
@@ -77,8 +76,7 @@ def _run_new(kind: str, name_or_dispatch: str, proj: Path, stdin: str = "", args
         capture_output=True,
         text=True,
         env=env,
-        check=False,
-    )
+        check=False, encoding="utf-8", errors="replace")
 
 
 def _assert_parity(old_r, new_r, *, proj=None, ctx: str = ""):

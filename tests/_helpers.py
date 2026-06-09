@@ -92,8 +92,7 @@ def run_dispatch(dispatch: str, proj: Path, stdin: str = "", extra_args: list[st
         capture_output=True,
         text=True,
         env=env,
-        check=False,
-    )
+        check=False, encoding="utf-8", errors="replace")
 
 
 def run_bin(name: str, proj: Path, args: list[str] | None = None) -> subprocess.CompletedProcess:
@@ -109,5 +108,4 @@ def run_bin(name: str, proj: Path, args: list[str] | None = None) -> subprocess.
         capture_output=True,
         text=True,
         env=env,
-        check=False,
-    )
+        check=False, encoding="utf-8", errors="replace")

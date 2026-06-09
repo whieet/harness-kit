@@ -55,8 +55,7 @@ def _run_old_hook(old: Path, script: str, proj: Path, stdin: str = "") -> subpro
         capture_output=True,
         text=True,
         env={**os.environ, "CLAUDE_PROJECT_DIR": str(proj)},
-        check=False,
-    )
+        check=False, encoding="utf-8", errors="replace")
 
 
 def _run_old_bin(old: Path, name: str, proj: Path, args: list[str] | None = None) -> subprocess.CompletedProcess:
@@ -66,8 +65,7 @@ def _run_old_bin(old: Path, name: str, proj: Path, args: list[str] | None = None
         capture_output=True,
         text=True,
         env={**os.environ, "CLAUDE_PROJECT_DIR": str(proj)},
-        check=False,
-    )
+        check=False, encoding="utf-8", errors="replace")
 
 
 def _run_new_hook(dispatch: str, proj: Path, stdin: str = "") -> subprocess.CompletedProcess:
@@ -81,8 +79,7 @@ def _run_new_hook(dispatch: str, proj: Path, stdin: str = "") -> subprocess.Comp
         capture_output=True,
         text=True,
         env=env,
-        check=False,
-    )
+        check=False, encoding="utf-8", errors="replace")
 
 
 def _run_new_bin(name: str, proj: Path, args: list[str] | None = None) -> subprocess.CompletedProcess:
@@ -95,8 +92,7 @@ def _run_new_bin(name: str, proj: Path, args: list[str] | None = None) -> subpro
         capture_output=True,
         text=True,
         env=env,
-        check=False,
-    )
+        check=False, encoding="utf-8", errors="replace")
 
 
 # --- the fixtures ------------------------------------------------------------
@@ -434,7 +430,7 @@ def test_init_godot(old_plugin_root, tmp_path):
         else:
             cmd = ["bash", str(REPO_ROOT / "bin" / "harness-init"), "custom"]
             env["HARNESS_KIT_ROOT"] = str(REPO_ROOT)
-        r = subprocess.run(cmd, cwd=str(proj), capture_output=True, text=True, env=env, check=False)
+        r = subprocess.run(cmd, cwd=str(proj), capture_output=True, text=True, env=env, check=False, encoding="utf-8", errors="replace")
         assert r.returncode == 0, f"{label}: rc={r.returncode}\n{r.stdout}\n{r.stderr}"
         assert (proj / ".harness" / "config.json").exists()
         assert (proj / ".harness" / "hooks" / "pre-commit").exists()

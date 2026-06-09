@@ -28,8 +28,7 @@ def _run_old_hook(old: Path, script: str, proj: Path, stdin: str = "") -> subpro
         capture_output=True,
         text=True,
         env={**os.environ, "CLAUDE_PROJECT_DIR": str(proj)},
-        check=False,
-    )
+        check=False, encoding="utf-8", errors="replace")
 
 
 def _run_old_bin(old: Path, name: str, proj: Path, args: list[str] | None = None) -> subprocess.CompletedProcess:
@@ -39,8 +38,7 @@ def _run_old_bin(old: Path, name: str, proj: Path, args: list[str] | None = None
         capture_output=True,
         text=True,
         env={**os.environ, "CLAUDE_PROJECT_DIR": str(proj)},
-        check=False,
-    )
+        check=False, encoding="utf-8", errors="replace")
 
 
 def _run_new_hook(dispatch: str, proj: Path, stdin: str = "") -> subprocess.CompletedProcess:
@@ -54,8 +52,7 @@ def _run_new_hook(dispatch: str, proj: Path, stdin: str = "") -> subprocess.Comp
         capture_output=True,
         text=True,
         env=env,
-        check=False,
-    )
+        check=False, encoding="utf-8", errors="replace")
 
 
 def _run_new_bin(name: str, proj: Path, args: list[str] | None = None) -> subprocess.CompletedProcess:
@@ -68,8 +65,7 @@ def _run_new_bin(name: str, proj: Path, args: list[str] | None = None) -> subpro
         capture_output=True,
         text=True,
         env=env,
-        check=False,
-    )
+        check=False, encoding="utf-8", errors="replace")
 
 
 def _payload(cwd: Path, **extra) -> str:
@@ -380,8 +376,7 @@ def test_trace_jsonl_uses_compact_separators(tmp_path):
         capture_output=True,
         text=True,
         env={**os.environ, "HARNESS_KIT_ROOT": str(REPO_ROOT), "CLAUDE_PROJECT_DIR": str(proj)},
-        check=False,
-    )
+        check=False, encoding="utf-8", errors="replace")
     assert r.returncode == 0
     line = (proj / ".harness" / "state" / "trace.jsonl").read_text(encoding="utf-8").strip()
     # Compact: no ": " and no ", "

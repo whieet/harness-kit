@@ -153,8 +153,7 @@ def test_detached_head(tmp_path):
     subprocess.run(["git", "-C", str(proj), "commit", "-q", "-m", "second"], check=True)
     first = subprocess.run(
         ["git", "-C", str(proj), "rev-list", "--max-parents=0", "HEAD"],
-        capture_output=True, text=True, check=True,
-    ).stdout.strip()
+        capture_output=True, text=True, check=True, encoding="utf-8", errors="replace").stdout.strip()
     subprocess.run(["git", "-C", str(proj), "checkout", "-q", first], check=True)
     payload = json.dumps({"cwd": str(proj), "session_id": "s"})
     r = run_dispatch("session-start", proj, stdin=payload)
