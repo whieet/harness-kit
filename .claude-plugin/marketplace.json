@@ -2,7 +2,7 @@
   "name": "harness-kit",
   "owner": { "name": "River", "email": "riyazulfd@gmail.com" },
   "description": "Harness Kit — a project-agnostic harness-engineering plugin for Claude Code.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "plugins": [
     {
       "name": "harness-kit",
