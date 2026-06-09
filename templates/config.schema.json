@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/river/harness-kit/templates/config.schema.json",
+  "$id": "https://github.com/whieet/harness-kit/templates/config.schema.json",
   "title": "harness-kit project config (.harness/config.json)",
   "description": "Per-project, git-tracked configuration that makes the bundled harness scripts project-agnostic. Every project literal (file globs, verify commands, layering rules, verification method, phase thresholds) lives here, never in plugin code.",
   "type": "object",
