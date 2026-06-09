@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# harness-advisor — PASSIVE harness dashboard (no auto-router).
+#
+# Design change (upgrade): the old maturity-phase auto-router (phases[] thresholds
+# that "unlocked capabilities") was a bootstrap scaffold. Per the harness principle
+# "the harness evolves — tear down scaffolds; the evaluator stays, the advisor goes",
+# capability on/off now lives in config.enabledCapabilities{} that the USER owns, and
+# adaptation comes from the trace-driven suggester (harness-trace-analyze), not an
+# artifact-count router. This command just SHOWS state:
+#   - artifact metric counts (config.metrics[])
+#   - which capabilities are enabled
+#   - the configured verify gates
+#   - any trace-driven suggestions (from harness-trace-analyze)
+set -uo pipefail
+BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../scripts/lib/config.sh
+source "$BIN_DIR/../scripts/lib/config.sh"
+cd "$HARNESS_PROJECT_DIR" 2>/dev/null || exit 0
+
+python3 - "$HARNESS_CONFIG" <<'PYEOF'
+import json, sys, os, glob, re
+cfg = json.load(open(sys.argv[1])) if os.path.exists(sys.argv[1]) else {}
+
+print("=== Harness dashboard ===")
+
+# Artifact metrics (passive counts — no phase judgment)
+counts = {}
+for m in cfg.get("metrics", []):
+    name, g = m.get("name"), m.get("glob", "")
+    if not name or not g:
+        continue
+    files = [p for p in glob.glob(g, recursive=True) if os.path.isfile(p)]
+    exc = m.get("exclude")
+    if exc:
+        rx = re.compile(exc)
+        files = [p for p in files if not rx.search(p)]
+    counts[name] = len(files)
+if counts:
+    print("Artifacts: " + ", ".join("%s=%d" % (k, v) for k, v in counts.items()))
+
+# Enabled capabilities (user-owned booleans). Defaults: stable ON, experimental OFF.
+EXPERIMENTAL_OFF = {"evaluatorAutoDispatch"}
+KNOWN = ["planGate", "loopDetection", "toolTrace", "evaluator", "contextSnapshot", "evaluatorAutoDispatch"]
+caps = cfg.get("enabledCapabilities", {})
+shown = []
+for name in KNOWN:
+    default = name not in EXPERIMENTAL_OFF
+    on = caps.get(name, default)
+    shown.append("%s=%s" % (name, "on" if on else "off"))
+print("Capabilities: " + ", ".join(shown))
+if "effortRouting" in cfg:
+    print("Effort routing: " + ("on" if cfg.get("effortRouting", {}).get("enabled") else "off (always full)"))
+
+# Configured verify gates
+gates = cfg.get("gates", [])
+if gates:
+    print("Verify gates: " + ", ".join("%s%s" % (g.get("name", "?"), "" if g.get("blocking", True) else "(soft)") for g in gates))
+
+# Legacy phases[] present? note that it is now ignored.
+if cfg.get("phases"):
+    print("Note: legacy phases[] is present but IGNORED (run `claude -p --maintenance` to migrate, or harness-maintenance).")
+PYEOF
+
+# Trace-driven suggestions (the advisor's adaptation role — see harness-trace-analyze).
+if [ -x "$BIN_DIR/harness-trace-analyze" ]; then
+  SUG=$(bash "$BIN_DIR/harness-trace-analyze" --suggest 2>/dev/null || true)
+  if [ -n "$SUG" ]; then
+    echo ""
+    echo "Suggestions (trace-driven — you decide):"
+    printf '%s\n' "$SUG" | sed 's/^/  /'
+  fi
+fi

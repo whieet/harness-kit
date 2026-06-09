@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# harness-verify — config-driven verification gate orchestrator.
+# Replaces the hardcoded steps of scripts-tooling/verify.sh with a loop over
+# config.gates[] = {name, command, blocking, skipWhenProcess}.
+# Bundled gates (harness-check-layering, harness-doc-links, ...) resolve by bare
+# name because this script prepends its own bin dir to PATH.
+#
+# Exit: 0 = all BLOCKING gates passed (soft gates may warn); 1 = a blocking gate failed.
+set -uo pipefail
+BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../scripts/lib/config.sh
+source "$BIN_DIR/../scripts/lib/config.sh"
+cd "$HARNESS_PROJECT_DIR" 2>/dev/null || { echo "harness-verify: cannot cd to project root" >&2; exit 1; }
+export PATH="$BIN_DIR:$PATH"
+
+if ! harness_has_config; then
+  echo "harness-verify: no .harness/config.json — run /harness-kit:init. Nothing to verify."
+  exit 0
+fi
+
+# Extract gates as \x1e-terminated records; fields \x1f-separated (safe vs spaces in commands).
+GATES=$(python3 - "$HARNESS_CONFIG" <<'PYEOF'
+import json, sys, os
+cfg = json.load(open(sys.argv[1])) if os.path.exists(sys.argv[1]) else {}
+US, RS = "\x1f", "\x1e"
+buf = []
+for g in cfg.get("gates", []):
+    buf.append(US.join([
+        g.get("name", ""),
+        "true" if g.get("blocking", True) else "false",
+        g.get("skipWhenProcess", ""),
+        g.get("tier", "full"),
+        g.get("command", ""),
+    ]) + RS)
+sys.stdout.write("".join(buf))
+PYEOF
+)
+
+if [ -z "$GATES" ]; then
+  echo "harness-verify: no gates configured in .harness/config.json."
+  exit 0
+fi
+
+# Effort routing (Reasoning Sandwich), OPT-IN. Default OFF => all gates always run.
+# When config.effortRouting.enabled and the turn's effort is low/medium, run only
+# 'fast'-tier gates; skipped 'full' gates are LOGGED (never silently dropped).
+ROUTE_FAST=0
+EFFORT="${CLAUDE_EFFORT:-}"
+if [ "$(harness_cfg_get effortRouting.enabled false)" = "true" ]; then
+  case "$EFFORT" in
+    low|medium) ROUTE_FAST=1 ;;
+  esac
+fi
+
+TRACE=""
+harness_cap_enabled toolTrace 2>/dev/null && TRACE="$(harness_state_dir)/trace.jsonl"
+OVERALL=0; SOFT_WARN=0; N=0; SKIPPED_FULL=""
+TMP="$(mktemp)"
+HDR="==> harness-verify"
+[ "$ROUTE_FAST" -eq 1 ] && HDR="$HDR (effort=$EFFORT → fast-tier only)"
+echo "$HDR"
+while IFS= read -r -d $'\x1e' rec; do
+  [ -z "$rec" ] && continue
+  IFS=$'\x1f' read -r NAME BLOCKING SKIP TIER CMD <<< "$rec"
+  if [ "$ROUTE_FAST" -eq 1 ] && [ "$TIER" != "fast" ]; then
+    SKIPPED_FULL="$SKIPPED_FULL $NAME"
+    continue
+  fi
+  if [ -n "$SKIP" ] && pgrep -q "$SKIP" 2>/dev/null; then
+    echo "  [skip] $NAME (process '$SKIP' running)"
+    continue
+  fi
+  N=$((N + 1))
+  if bash -c "$CMD" >"$TMP" 2>&1; then
+    echo "  [ok]   $NAME"
+    GATE_OK=true
+  else
+    rc=$?
+    GATE_OK=false
+    if [ "$BLOCKING" = "true" ]; then
+      echo "  [FAIL] $NAME (rc=$rc)"
+      OVERALL=1
+    else
+      echo "  [warn] $NAME (rc=$rc, non-blocking)"
+      SOFT_WARN=1
+    fi
+    sed 's/^/         /' "$TMP"
+  fi
+  [ -n "$TRACE" ] && printf '{"ts":"%s","event":"gate","name":"%s","ok":%s}\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$NAME" "$GATE_OK" >> "$TRACE" 2>/dev/null || true
+done < <(printf '%s' "$GATES")
+rm -f "$TMP"
+
+[ -n "$SKIPPED_FULL" ] && echo "  [routed-skip] full-tier gates not run at effort=$EFFORT:$SKIPPED_FULL (run at high+ effort or disable effortRouting)"
+
+echo ""
+if [ "$OVERALL" -ne 0 ]; then
+  echo "==> ❌ harness-verify FAILED"
+  exit 1
+fi
+[ "$SOFT_WARN" -ne 0 ] && echo "==> ⚠️  harness-verify passed with soft warnings"
+echo "==> ✅ harness-verify OK ($N gates)"
+exit 0

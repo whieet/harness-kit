@@ -1,0 +1,76 @@
+{
+  "projectType": "godot",
+  "verificationMode": "strict",
+  "buildCmd": "godot --headless --quit --path .",
+  "testCmd": "",
+  "gates": [
+    { "name": "claude-md-budget", "command": "test \"$(wc -l < CLAUDE.md)\" -le 120 || { echo 'CLAUDE.md exceeds 120 lines — move detail into docs/'; exit 1; }", "blocking": true, "tier": "fast" },
+    { "name": "layering", "command": "harness-check-layering", "blocking": true, "tier": "fast" },
+    { "name": "doc-links", "command": "harness-doc-links", "blocking": true, "tier": "fast" },
+    { "name": "godot-compile", "command": "if grep -qE '^main_scene=' project.godot 2>/dev/null && command -v godot >/dev/null 2>&1; then godot --headless --quit --path . 2>&1 | tail -20; else echo 'skip: no main_scene or godot CLI'; fi", "blocking": true, "skipWhenProcess": "Godot", "tier": "full" },
+    { "name": "plan-dod", "command": "harness-check-plan-dod", "blocking": true, "tier": "fast" },
+    { "name": "doc-gardening", "command": "harness-doc-gardening", "blocking": false, "tier": "fast" }
+  ],
+  "layeringRules": [
+    { "scope": "scripts/domain/**/*.gd", "forbidden": "^extends (Node|Node2D|CanvasItem|Control)", "message": "domain/ must be pure data/rules, not a Node" },
+    { "scope": "scripts/domain/**/*.gd", "forbidden": "preload\\(\"res://scenes/", "message": "domain/ must not preload scenes" },
+    { "scope": "scripts/ui/**/*.gd", "forbidden": "preload\\(\"res://scripts/gameplay/", "message": "ui must not reverse-reference gameplay; route via EventBus/autoload" },
+    { "scope": "scripts/gameplay/**/*.gd", "forbidden": "preload\\(\"res://scripts/ui/", "message": "gameplay must not depend on ui; route via EventBus/autoload" }
+  ],
+  "plan": {
+    "dir": "docs/exec-plans",
+    "codeGlob": "\\.(gd|tscn)$",
+    "statusField": "状态",
+    "completedValue": "completed",
+    "checklistRegex": "^- \\[ \\]",
+    "requiredFields": ["状态", "创建", "步骤", "完成判据"]
+  },
+  "docs": {
+    "keyDocs": [
+      { "path": "docs/DESIGN.md", "note": "visual/UX spec — read before UI work" },
+      { "path": "docs/RELIABILITY.md", "note": "perf/stability merge gates" },
+      { "path": "docs/SECURITY.md", "note": "save paths + resource whitelist + network boundary" },
+      { "path": "docs/references/harness-engineering.md", "note": "harness theory + mapping" }
+    ],
+    "scanRoots": ["docs"],
+    "architecturePath": "ARCHITECTURE.md",
+    "qualityPath": "docs/QUALITY.md",
+    "stalenessDays": 14,
+    "layerPathRegex": "scripts/[a-z_]+",
+    "layerBaseDir": "scripts",
+    "layerIgnoreDirs": ["_autoload", "utils", "tools"],
+    "namingGlob": "scripts/**/*.gd",
+    "namingDisallow": "[A-Z]|--|__"
+  },
+  "metrics": [
+    { "name": "doc_count", "glob": "docs/**/*.md" },
+    { "name": "completed", "glob": "docs/exec-plans/completed/*.md", "exclude": "gitkeep" },
+    { "name": "active", "glob": "docs/exec-plans/active/*.md", "exclude": "gitkeep" },
+    { "name": "gameplay", "glob": "scripts/gameplay/**/*.gd" },
+    { "name": "ui", "glob": "scripts/ui/**/*.gd" },
+    { "name": "golden", "glob": "tests/golden/*", "exclude": "gitkeep" },
+    { "name": "product_specs", "glob": "docs/product-specs/*.md", "exclude": "(_template|index)" },
+    { "name": "design_decisions", "glob": "docs/design-docs/*.md", "exclude": "(template|index)" }
+  ],
+  "enabledCapabilities": {
+    "planGate": true,
+    "loopDetection": true,
+    "toolTrace": true,
+    "evaluator": true,
+    "contextSnapshot": true,
+    "evaluatorAutoDispatch": false
+  },
+  "effortRouting": { "enabled": false },
+  "loopDetection": { "threshold": 5, "ignoreGlobs": ["*.uid", "*.import"] },
+  "evaluator": {
+    "enabled": true,
+    "rubricPath": ".harness/rubric.md",
+    "mode": "advisory"
+  },
+  "verificationRecipe": {
+    "functionality": "mcp__godot-mcp-pro__play_scene then mcp__godot-mcp-pro__get_editor_errors",
+    "visual": "mcp__godot-mcp-pro__get_game_screenshot (and compare_screenshots vs tests/golden)",
+    "integration": "mcp__godot-mcp-pro__assert_node_state / watch_signals on AppRegistry/EventBus",
+    "quality": "harness-verify (layering + headless compile)"
+  }
+}

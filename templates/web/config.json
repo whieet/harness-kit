@@ -1,0 +1,74 @@
+{
+  "projectType": "web",
+  "verificationMode": "strict",
+  "buildCmd": "npm run build",
+  "testCmd": "npm test --silent -- --run",
+  "gates": [
+    { "name": "readme-budget", "command": "test ! -f CLAUDE.md || test \"$(wc -l < CLAUDE.md)\" -le 200 || { echo 'CLAUDE.md exceeds 200 lines — move detail into docs/'; exit 1; }", "blocking": false, "tier": "fast" },
+    { "name": "eslint", "command": "if [ -f package.json ] && npx --no-install eslint --version >/dev/null 2>&1; then npx --no-install eslint . ; else echo 'skip: eslint not installed'; fi", "blocking": true, "tier": "fast" },
+    { "name": "typecheck", "command": "if [ -f tsconfig.json ] && npx --no-install tsc --version >/dev/null 2>&1; then npx --no-install tsc --noEmit ; else echo 'skip: tsc not configured'; fi", "blocking": true, "tier": "full" },
+    { "name": "layering", "command": "harness-check-layering", "blocking": true, "tier": "fast" },
+    { "name": "doc-links", "command": "harness-doc-links", "blocking": true, "tier": "fast" },
+    { "name": "unit-tests", "command": "if grep -q '\"test\"' package.json 2>/dev/null; then npm test --silent -- --run 2>&1 | tail -30 ; else echo 'skip: no test script'; fi", "blocking": true, "tier": "full" },
+    { "name": "plan-dod", "command": "harness-check-plan-dod", "blocking": true, "tier": "fast" },
+    { "name": "doc-gardening", "command": "harness-doc-gardening", "blocking": false, "tier": "fast" }
+  ],
+  "layeringRules": [
+    { "scope": "src/ui/**/*.{ts,tsx,js,jsx,vue,svelte}", "forbidden": "from\\s+['\"][^'\"]*(db|prisma|knex|drizzle)", "message": "UI must not import the DB/ORM layer; go through an API/service" },
+    { "scope": "src/domain/**/*.{ts,tsx}", "forbidden": "from\\s+['\"]react", "message": "domain logic must not import React" },
+    { "scope": "src/components/**/*.{ts,tsx,vue,svelte}", "forbidden": "process\\.env", "message": "components must not read process.env directly; inject via config/props" }
+  ],
+  "plan": {
+    "dir": "docs/plans",
+    "codeGlob": "\\.(ts|tsx|jsx|vue|svelte)$",
+    "statusField": "status",
+    "completedValue": "completed",
+    "checklistRegex": "^- \\[ \\]",
+    "requiredFields": ["status", "created", "Definition of Done"]
+  },
+  "docs": {
+    "keyDocs": [
+      { "path": "README.md", "note": "project overview" },
+      { "path": "ARCHITECTURE.md", "note": "module boundaries" },
+      { "path": "docs/DESIGN.md", "note": "UI/UX spec — read before component work" }
+    ],
+    "scanRoots": ["docs"],
+    "architecturePath": "ARCHITECTURE.md",
+    "qualityPath": "docs/QUALITY.md",
+    "stalenessDays": 14,
+    "layerPathRegex": "src/[a-z_-]+",
+    "layerBaseDir": "src",
+    "layerIgnoreDirs": ["assets", "styles", "types"],
+    "namingGlob": "src/components/**/*.{ts,tsx}",
+    "namingDisallow": "[ ]"
+  },
+  "metrics": [
+    { "name": "doc_count", "glob": "docs/**/*.md" },
+    { "name": "completed", "glob": "docs/plans/completed/*.md", "exclude": "gitkeep" },
+    { "name": "active", "glob": "docs/plans/active/*.md", "exclude": "gitkeep" },
+    { "name": "components", "glob": "src/components/**/*.{ts,tsx,vue,svelte}" },
+    { "name": "pages", "glob": "src/{pages,routes,app}/**/*.{ts,tsx}" },
+    { "name": "e2e", "glob": "{tests,e2e}/**/*.{spec,test}.{ts,tsx}" }
+  ],
+  "enabledCapabilities": {
+    "planGate": true,
+    "loopDetection": true,
+    "toolTrace": true,
+    "evaluator": true,
+    "contextSnapshot": true,
+    "evaluatorAutoDispatch": false
+  },
+  "effortRouting": { "enabled": false },
+  "loopDetection": { "threshold": 5, "ignoreGlobs": ["*.lock", "package-lock.json", "pnpm-lock.yaml", "dist/*", "*.snap"] },
+  "evaluator": {
+    "enabled": true,
+    "rubricPath": ".harness/rubric.md",
+    "mode": "advisory"
+  },
+  "verificationRecipe": {
+    "functionality": "npx playwright test (or the project e2e runner)",
+    "visual": "Playwright screenshot / visual-regression vs baseline",
+    "integration": "run the e2e suite; verify no regression in existing flows",
+    "quality": "harness-verify (eslint + tsc + layering)"
+  }
+}

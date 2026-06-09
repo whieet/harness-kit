@@ -1,0 +1,161 @@
+#!/usr/bin/env bash
+# harness-doc-gardening — config-driven doc/code coherence scan (advisory by default).
+# Generalized subset of scripts-tooling/doc-gardening.sh. Each check runs ONLY when
+# the project configured the relevant keys — the general plugin invents no
+# project-specific behavior. Enforcement is decided by the gate's `blocking` flag
+# in config.gates[] (this script just exits 1 when it finds any issue).
+#
+# Checks (all guarded by config presence):
+#   - completed-plan status consistency   (plan.statusField + plan.completedValue)
+#   - template compliance                 (plan.requiredFields)
+#   - placeholder content                 (docs.placeholderPatterns; sensible default)
+#   - quality-doc staleness               (docs.qualityPath + docs.stalenessDays)
+#   - architecture drift                  (docs.architecturePath + docs.layerPathRegex)
+#   - file naming convention              (docs.namingGlob + docs.namingDisallow)
+set -uo pipefail
+LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")/../scripts/lib" && pwd)"
+# shellcheck source=../scripts/lib/config.sh
+source "$LIB/config.sh"
+cd "$HARNESS_PROJECT_DIR" 2>/dev/null || exit 0
+
+python3 - "$HARNESS_CONFIG" <<'PYEOF'
+import json, sys, os, re, glob, datetime
+cfg = json.load(open(sys.argv[1])) if os.path.exists(sys.argv[1]) else {}
+plan = cfg.get("plan", {})
+docs = cfg.get("docs", {})
+issues = []
+
+def add(check, detail):
+    issues.append((check, detail))
+
+plan_dir = plan.get("dir", "docs/exec-plans")
+completed_dir = os.path.join(plan_dir, "completed")
+
+# 1. completed-plan status consistency
+status_field = plan.get("statusField")
+completed_val = plan.get("completedValue", "completed")
+if status_field and os.path.isdir(completed_dir):
+    sline = re.compile(re.escape(status_field) + r"\**\s*[：:]\s*(.+?)\s*$")
+    for p in sorted(glob.glob(os.path.join(completed_dir, "*.md"))):
+        if os.path.basename(p) == ".gitkeep":
+            continue
+        st = None
+        for ln in open(p, errors="replace").read().splitlines():
+            m = sline.search(ln)
+            if m:
+                st = m.group(1).strip().strip("*").strip()
+                break
+        if st and st != completed_val:
+            add("status-mismatch", "%s: in completed/ but status='%s'" % (os.path.basename(p), st))
+
+# 2. template compliance for completed plans
+required = plan.get("requiredFields", [])
+if required and os.path.isdir(completed_dir):
+    for p in sorted(glob.glob(os.path.join(completed_dir, "*.md"))):
+        if os.path.basename(p) == ".gitkeep":
+            continue
+        text = open(p, errors="replace").read()
+        for field in required:
+            if field not in text:
+                add("template-field", "%s: missing '%s'" % (os.path.basename(p), field))
+
+# 3. placeholder content
+patterns = docs.get("placeholderPatterns", ["TODO: fill", "待补充", "暂未填充", "当前为占位", "本文档应包含"])
+scan_roots = docs.get("scanRoots", ["docs"])
+seen = set()
+for root in scan_roots:
+    if root == ".":
+        candidates = glob.glob("*.md")
+    else:
+        candidates = glob.glob(os.path.join(root, "**", "*.md"), recursive=True)
+    for p in candidates:
+        if p in seen or not os.path.isfile(p):
+            continue
+        # templates are *supposed* to contain placeholder prompts — skip them
+        if os.path.basename(p) == "_template.md":
+            continue
+        seen.add(p)
+        text = open(p, errors="replace").read()
+        for pat in patterns:
+            if pat in text:
+                add("placeholder", "%s: contains '%s'" % (p, pat))
+                break
+
+# 4. quality-doc staleness — per table-row dates (newest-of-file as fallback)
+qpath = docs.get("qualityPath")
+stale_days = int(docs.get("stalenessDays", 14))
+if qpath and os.path.isfile(qpath):
+    today = datetime.date.today()
+    qtext = open(qpath, errors="replace").read()
+    flagged = 0
+    for line in qtext.splitlines():
+        if "|" not in line:
+            continue
+        m = re.search(r"\d{4}-\d{2}-\d{2}", line)
+        if not m:
+            continue
+        try:
+            d = datetime.date.fromisoformat(m.group(0))
+        except ValueError:
+            continue
+        age = (today - d).days
+        if age > stale_days:
+            cells = [c.strip() for c in line.split("|") if c.strip()]
+            label = cells[0] if cells else "(row)"
+            add("stale-quality", "%s row '%s': %s is %d days old (> %d)" % (os.path.basename(qpath), label, m.group(0), age, stale_days))
+            flagged += 1
+    if flagged == 0:  # no dated table rows — fall back to newest date in the file
+        dates = []
+        for ds in re.findall(r"\d{4}-\d{2}-\d{2}", qtext):
+            try:
+                dates.append(datetime.date.fromisoformat(ds))
+            except ValueError:
+                pass
+        if dates:
+            newest = max(dates)
+            age = (today - newest).days
+            if age > stale_days:
+                add("stale-quality", "%s: newest dated entry %s is %d days old (> %d)" % (os.path.basename(qpath), newest, age, stale_days))
+
+# 5. architecture drift — BIDIRECTIONAL (declared<->actual)
+apath = docs.get("architecturePath")
+layer_re = docs.get("layerPathRegex")
+if apath and layer_re and os.path.isfile(apath):
+    arch_text = open(apath, errors="replace").read()
+    refs = set(re.findall(layer_re, arch_text))
+    # forward: declared in the doc but missing on disk
+    for ref in sorted(refs):
+        if not os.path.exists(ref):
+            add("arch-drift", "%s declares '%s' which does not exist on disk" % (os.path.basename(apath), ref))
+    # reverse: a real layer dir that the doc never mentions (undeclared)
+    base = docs.get("layerBaseDir")
+    ignore_dirs = set(docs.get("layerIgnoreDirs", []))
+    if base and os.path.isdir(base):
+        for entry in sorted(os.listdir(base)):
+            full = os.path.join(base, entry)
+            if (not os.path.isdir(full)) or entry in ignore_dirs or entry.startswith("."):
+                continue
+            if full not in arch_text and full not in refs:
+                add("arch-drift", "%s exists but is not declared in %s (undeclared layer)" % (full, os.path.basename(apath)))
+
+# 6. file naming convention
+nglob = docs.get("namingGlob")
+ndisallow = docs.get("namingDisallow")  # regex on basename-without-ext that must NOT match
+if nglob and ndisallow:
+    rx = re.compile(ndisallow)
+    for p in glob.glob(nglob, recursive=True):
+        if not os.path.isfile(p):
+            continue
+        base = os.path.splitext(os.path.basename(p))[0]
+        if rx.search(base):
+            add("naming", "%s: violates naming rule" % p)
+
+if not issues:
+    print("  ✓ doc-gardening: no drift")
+    sys.exit(0)
+
+print("  doc-gardening findings (%d):" % len(issues))
+for check, detail in issues:
+    print("    [%s] %s" % (check, detail))
+sys.exit(1)
+PYEOF

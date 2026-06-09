@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# harness-check-plan-dod — plan-lifecycle consistency gate.
+# Ported from scripts-tooling/check_plan_dod.sh, field labels config-driven.
+# Flags active plans that are fully checked-off but not archived, and plans whose
+# status == completedValue while still sitting in active/.
+#
+# Config: plan.dir (default docs/exec-plans), plan.statusField (default "status"),
+#         plan.completedValue (default "completed"), plan.checklistRegex.
+# Exit: 0 = consistent, 1 = a plan needs archiving / status fix.
+set -uo pipefail
+LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")/../scripts/lib" && pwd)"
+# shellcheck source=../scripts/lib/config.sh
+source "$LIB/config.sh"
+cd "$HARNESS_PROJECT_DIR" 2>/dev/null || exit 0
+
+python3 - "$HARNESS_CONFIG" <<'PYEOF'
+import json, sys, os, re, glob
+cfg = json.load(open(sys.argv[1])) if os.path.exists(sys.argv[1]) else {}
+plan = cfg.get("plan", {})
+plan_dir = plan.get("dir", "docs/exec-plans")
+status_field = plan.get("statusField", "status")
+completed_val = plan.get("completedValue", "completed")
+unchecked_re = re.compile(plan.get("checklistRegex", r"^- \[ \]"))
+checked_re = re.compile(r"^- \[[xX]\]")
+
+active_dir = os.path.join(plan_dir, "active")
+if not os.path.isdir(active_dir):
+    print("  ✓ plan DoD: no active/ dir")
+    sys.exit(0)
+
+# status line: a line containing the status field label followed by ：or : then value
+status_line_re = re.compile(re.escape(status_field) + r"\**\s*[：:]\s*(.+?)\s*$")
+
+fail = 0
+for path in sorted(glob.glob(os.path.join(active_dir, "*.md"))):
+    name = os.path.basename(path)
+    if name == ".gitkeep":
+        continue
+    try:
+        text = open(path, errors="replace").read()
+    except Exception:
+        continue
+    lines = text.splitlines()
+    status = None
+    for ln in lines:
+        m = status_line_re.search(ln)
+        if m:
+            status = m.group(1).strip().strip("*").strip()
+            break
+    if status is None:
+        continue
+    unchecked = sum(1 for ln in lines if unchecked_re.search(ln))
+    checked = sum(1 for ln in lines if checked_re.search(ln))
+    if status == completed_val:
+        print("  ✗ %s: status is '%s' but file is still in active/. Move it to completed/." % (name, completed_val))
+        fail = 1
+    elif unchecked == 0 and checked > 0:
+        print("  ✗ %s: all %d DoD items checked but not archived. Move it to completed/." % (name, checked))
+        fail = 1
+
+if fail:
+    sys.exit(1)
+print("  ✓ plan DoD OK")
+PYEOF

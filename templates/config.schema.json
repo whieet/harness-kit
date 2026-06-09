@@ -1,0 +1,146 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/river/harness-kit/templates/config.schema.json",
+  "title": "harness-kit project config (.harness/config.json)",
+  "description": "Per-project, git-tracked configuration that makes the bundled harness scripts project-agnostic. Every project literal (file globs, verify commands, layering rules, verification method, phase thresholds) lives here, never in plugin code.",
+  "type": "object",
+  "properties": {
+    "projectType": {
+      "type": "string",
+      "enum": ["godot", "web", "custom"],
+      "description": "Preset identity. Affects only the init scaffolder and advisor capability copy; bundled scripts never branch on it."
+    },
+    "verificationMode": {
+      "type": "string",
+      "enum": ["advisory", "strict"],
+      "default": "strict",
+      "description": "Consumed by on-stop-verify.sh. strict => exit 2 blocks premature completion; advisory => warn only. Overrides the userConfig default."
+    },
+    "verifyCmd": {
+      "type": "string",
+      "description": "Canonical verify entrypoint used by the Stop hook, the git pre-commit hook, and /harness-kit:verify. Defaults to the bundled harness-verify orchestrator."
+    },
+    "buildCmd": { "type": "string", "description": "Build/compile command, surfaced by the advisor/checklist (e.g. 'godot --headless --quit --path .' or 'npm run build')." },
+    "testCmd": { "type": "string", "description": "Test runner command (e.g. a headless gdunit script, or 'npm test -- --run')." },
+    "gates": {
+      "type": "array",
+      "description": "Ordered verification gates consumed by harness-verify. Replaces the hardcoded steps of the old verify.sh.",
+      "items": {
+        "type": "object",
+        "required": ["name", "command"],
+        "properties": {
+          "name": { "type": "string", "description": "Human-readable gate label." },
+          "command": { "type": "string", "description": "Shell command to run. Bundled gates (harness-check-layering, harness-doc-links, ...) resolve via the plugin bin dir, which harness-verify prepends to PATH." },
+          "blocking": { "type": "boolean", "default": true, "description": "false = soft gate: a failure warns but does not fail the aggregate (generalizes the old STRICT_GARDENING flag)." },
+          "skipWhenProcess": { "type": "string", "description": "Optional: skip this gate if a process matching this name is running (e.g. 'Godot' to avoid the editor project lock during a headless compile)." },
+          "tier": { "type": "string", "enum": ["fast", "full"], "default": "full", "description": "Effort-routing tier. When effortRouting.enabled and the turn's effort is low/medium, only 'fast' gates run (others are logged as skipped). Default 'full' = runs only at high+ effort once routing is on. With routing off (default), tier is ignored and all gates run." }
+        }
+      }
+    },
+    "layeringRules": {
+      "type": "array",
+      "description": "Consumed by harness-check-layering. Replaces the hardcoded Godot grep rules.",
+      "items": {
+        "type": "object",
+        "required": ["scope", "forbidden", "message"],
+        "properties": {
+          "scope": { "type": "string", "description": "Glob of files to check (e.g. 'scripts/ui/**/*.gd' or 'src/ui/**/*.{ts,tsx}')." },
+          "forbidden": { "type": "string", "description": "Regex that must NOT appear in files under scope (an illegal dependency)." },
+          "message": { "type": "string", "description": "Remediation text shown when the rule is violated." }
+        }
+      }
+    },
+    "plan": {
+      "type": "object",
+      "description": "Plan lifecycle convention. Consumed by on-pre-edit (plan-gate), on-plan-approved, harness-check-plan-dod, advisor.",
+      "properties": {
+        "dir": { "type": "string", "default": "docs/exec-plans", "description": "Plan root; active/ and completed/ live under it." },
+        "codeGlob": { "type": "string", "description": "Regex of file paths whose edits require a covering plan (e.g. '\\.(gd|tscn)$' or '\\.(ts|tsx|vue|svelte)$'). Empty = plan-gate disabled." },
+        "template": { "type": "string", "description": "Path (relative to plugin templates or project) to the plan scaffold template; defaults to the bundled plan-template.md." },
+        "statusField": { "type": "string", "default": "status", "description": "Field label parsed from a plan's frontmatter/header to read its lifecycle status (the old Godot config used '状态')." },
+        "completedValue": { "type": "string", "default": "completed", "description": "The status value that means a plan is done and must live in completed/." },
+        "checklistRegex": { "type": "string", "default": "^- \\[ \\]", "description": "Regex matching an unchecked DoD item." },
+        "requiredFields": { "type": "array", "items": { "type": "string" }, "description": "Field labels every completed plan must contain (template-compliance check in doc-gardening)." }
+      }
+    },
+    "docs": {
+      "type": "object",
+      "description": "Doc-related paths. Consumed by on-session-start (keyDocs), harness-doc-links (scanRoots), harness-doc-gardening (architecturePath/qualityPath/stalenessDays/namingRule).",
+      "properties": {
+        "keyDocs": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "path": { "type": "string" }, "note": { "type": "string" } } },
+          "description": "Docs surfaced in the session handoff."
+        },
+        "scanRoots": { "type": "array", "items": { "type": "string" }, "default": ["docs"], "description": "Dirs scanned recursively for dead links (top-level *.md always scanned)." },
+        "architecturePath": { "type": "string", "description": "Architecture doc audited for drift by doc-gardening." },
+        "qualityPath": { "type": "string", "description": "Quality/score doc audited for staleness by doc-gardening." },
+        "stalenessDays": { "type": "integer", "default": 14, "description": "Doc-gardening staleness threshold (days) for the qualityPath newest-date check." },
+        "placeholderPatterns": { "type": "array", "items": { "type": "string" }, "description": "Substrings that mark unfinished placeholder docs (doc-gardening). Sensible English+CN defaults if omitted." },
+        "layerPathRegex": { "type": "string", "description": "Regex extracting referenced layer paths from architecturePath; doc-gardening flags any that no longer exist on disk (forward drift)." },
+        "layerBaseDir": { "type": "string", "description": "Base dir whose immediate subdirectories are the architecture layers; doc-gardening flags any real subdir NOT declared in architecturePath (reverse drift). E.g. 'scripts' or 'src'." },
+        "layerIgnoreDirs": { "type": "array", "items": { "type": "string" }, "description": "Subdirectory names under layerBaseDir that are exempt from the reverse-drift check (e.g. _autoload, utils)." },
+        "namingGlob": { "type": "string", "description": "Glob of files whose names are checked against namingDisallow." },
+        "namingDisallow": { "type": "string", "description": "Regex on the basename-without-extension that must NOT match (e.g. '[A-Z]' to enforce snake_case)." }
+      }
+    },
+    "metrics": {
+      "type": "array",
+      "description": "Consumed by harness-advisor. Each metric counts files matching a glob. Replaces the old hardcoded find commands.",
+      "items": {
+        "type": "object",
+        "required": ["name", "glob"],
+        "properties": {
+          "name": { "type": "string", "description": "Metric identifier referenced by phases[].when[].metric." },
+          "glob": { "type": "string", "description": "Glob whose match count is the metric value (e.g. 'docs/exec-plans/completed/*.md')." },
+          "exclude": { "type": "string", "description": "Optional regex; matching files are excluded from the count (e.g. exclude '_template.md')." }
+        }
+      }
+    },
+    "enabledCapabilities": {
+      "type": "object",
+      "description": "User-owned on/off switches for harness behaviors (replaces the old maturity-phase auto-router). Absent keys default ON for stable capabilities, OFF for experimental ones. Engines guard with harness_cap_enabled. The trace-driven suggester (harness-trace-analyze) recommends toggles; the user decides.",
+      "properties": {
+        "planGate": { "type": "boolean", "default": true, "description": "Auto-scaffold a plan when editing un-planned code (on-pre-edit)." },
+        "loopDetection": { "type": "boolean", "default": true, "description": "Per-file edit-loop nudge (on-post-edit)." },
+        "toolTrace": { "type": "boolean", "default": true, "description": "Record tool-call/failure metadata for trace analysis (on-post-tool / on-tool-failure)." },
+        "evaluator": { "type": "boolean", "default": true, "description": "Recommend the evaluator at the Stop gate when code changed (on-stop-verify)." },
+        "contextSnapshot": { "type": "boolean", "default": true, "description": "Snapshot harness state before compaction and re-inject after (on-pre-compact / on-user-prompt)." },
+        "evaluatorAutoDispatch": { "type": "boolean", "default": false, "description": "EXPERIMENTAL: auto-run the evaluator subagent via a type:agent Stop hook (non-blocking, context-only). Off by default; also requires wiring hooks/optional-auto-eval.json." }
+      }
+    },
+    "effortRouting": {
+      "type": "object",
+      "description": "Reasoning Sandwich. When enabled, low/medium-effort turns run only 'fast'-tier gates (skips are logged). Default OFF so verification is never silently weakened by a low-effort turn.",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false, "description": "Off = always run all gates regardless of effort (safe default). On = route by $CLAUDE_EFFORT." }
+      }
+    },
+    "phases": {
+      "type": "array",
+      "deprecated": true,
+      "description": "DEPRECATED — the maturity-phase auto-router was removed. harness-advisor ignores this key. Run `claude -p --maintenance` (harness-maintenance) to migrate to enabledCapabilities{}."
+    },
+    "loopDetection": {
+      "type": "object",
+      "properties": {
+        "threshold": { "type": "integer", "default": 5, "description": "Warn after this many edits to one file in a session." },
+        "ignoreGlobs": { "type": "array", "items": { "type": "string" }, "description": "File globs excluded from loop counting (e.g. generated files, lockfiles)." }
+      }
+    },
+    "evaluator": {
+      "type": "object",
+      "description": "Generator/Evaluator separation. Consumed by on-stop-verify (final checklist stage).",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false, "description": "Run the skeptical evaluator as the last Stop-hook stage when code matching plan.codeGlob changed." },
+        "rubricPath": { "type": "string", "description": "Path to the per-project rubric (e.g. .harness/rubric.md)." },
+        "mode": { "type": "string", "enum": ["advisory", "strict"], "default": "advisory", "description": "strict => a sub-threshold rubric score blocks completion." }
+      }
+    },
+    "verificationRecipe": {
+      "type": "object",
+      "description": "Maps each rubric dimension to the verification command / MCP tool that checks it. Consumed by the evaluator agent. Keeps MCP tool names (e.g. play_scene, get_game_screenshot) out of plugin code.",
+      "additionalProperties": { "type": "string" }
+    }
+  }
+}

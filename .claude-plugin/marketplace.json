@@ -1,0 +1,15 @@
+{
+  "name": "harness-kit",
+  "owner": { "name": "River", "email": "riyazulfd@gmail.com" },
+  "description": "Harness Kit — a project-agnostic harness-engineering plugin for Claude Code.",
+  "version": "0.1.0",
+  "plugins": [
+    {
+      "name": "harness-kit",
+      "source": "./",
+      "description": "Session handoff, plan-gating, pre-completion verification gates, loop detection, and maturity-phase routing, driven by a per-project .harness/config.json.",
+      "category": "workflow",
+      "keywords": ["harness", "verification", "plan", "hooks"]
+    }
+  ]
+}

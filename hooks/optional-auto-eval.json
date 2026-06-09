@@ -1,0 +1,17 @@
+{
+  "_README": "EXPERIMENTAL, OPT-IN. A type:agent Stop hook that auto-runs the evaluator at the end of every turn. It is NOT loaded by default (this file is not the plugin's hooks/hooks.json). Caveats, all doc-grounded: (1) type:agent hooks are experimental and may change. (2) Agent hooks are CONTEXT-ONLY — they CANNOT block completion; the verdict is fed back as additionalContext, so a FAIL will not stop the turn (the command-hook gate in hooks.json remains the only blocking gate). (3) It runs on EVERY Stop, costing tokens. To enable: copy the Stop entry below into your project's .claude/settings.json `hooks`, set enabledCapabilities.evaluatorAutoDispatch=true in .harness/config.json, and prefer the robust /harness-kit:evaluate skill for normal use.",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "agent",
+            "once": true,
+            "statusMessage": "Harness: auto-evaluator (experimental)",
+            "prompt": "You are the harness evaluator. First check .harness/config.json: if enabledCapabilities.evaluatorAutoDispatch is not true, output exactly 'SKIP' and stop. Otherwise: read .harness/rubric.md and the verificationRecipe; inspect the current `git diff` and `git diff --staged`; if no code changed, output 'SKIP'. Score each rubric dimension 1-5 (any <3 = FAIL), running the recipe's checks. Append your scores to .harness/state/trace.jsonl as {\"event\":\"evaluator\",\"dims\":{...},\"verdict\":\"...\"}. Return: VERDICT: PASS|WARN|FAIL with one evidence line per dimension. You cannot block completion — your verdict is advisory context for the next turn."
+          }
+        ]
+      }
+    ]
+  }
+}

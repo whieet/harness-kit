@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# harness-doc-links — markdown dead-link checker (config-driven scan roots).
+# Ported verbatim-in-logic from scripts-tooling/doc_freshness.sh; project-agnostic.
+# Resolves relative [text](path#anchor) links against the filesystem.
+#
+# Config: docs.scanRoots = array of dirs scanned recursively (default ["docs"]).
+#         Project-root top-level *.md is ALWAYS scanned (maxdepth 1).
+# Exit: 0 = all links live, 1 = dead link(s) found (printed to stderr).
+set -uo pipefail
+LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")/../scripts/lib" && pwd)"
+# shellcheck source=../scripts/lib/config.sh
+source "$LIB/config.sh"
+cd "$HARNESS_PROJECT_DIR" 2>/dev/null || exit 0
+
+ROOTS=$(harness_py 'print("\n".join(cfg.get("docs",{}).get("scanRoots",["docs"])))')
+
+MD_LIST="$(
+  { find . -maxdepth 1 -name '*.md' -type f
+    while IFS= read -r r; do
+      [ -z "$r" ] && continue
+      [ "$r" = "." ] && continue
+      find "$r" -name '*.md' -type f 2>/dev/null
+    done <<< "$ROOTS"
+  } | sort -u
+)"
+
+FAIL=0
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  dir="$(dirname "$f")"
+  while IFS=$'\t' read -r line target; do
+    [ -z "$target" ] && continue
+    case "$target" in
+      http*|"#"*|"mailto:"*) continue ;;
+    esac
+    file_part="${target%%#*}"
+    [ -z "$file_part" ] && continue
+    full="$dir/$file_part"
+    if [ ! -e "$full" ]; then
+      echo "  ✗ $f:$line  → dead link: $target" >&2
+      FAIL=1
+    fi
+  done < <(grep -nE '\[[^]]+\]\([^)]+\)' "$f" \
+            | sed -E 's/^([0-9]+):.*\[[^]]+\]\(([^)]+)\).*/\1\t\2/')
+done <<< "$MD_LIST"
+
+[ "$FAIL" -ne 0 ] && exit 1
+echo "  ✓ doc links OK"
+exit 0

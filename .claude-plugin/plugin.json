@@ -1,0 +1,35 @@
+{
+  "name": "harness-kit",
+  "displayName": "Harness Kit",
+  "version": "0.1.0",
+  "description": "Project-agnostic harness engineering for Claude Code: session handoff, plan-gating, pre-completion verification gates, loop detection, and maturity-phase routing — all driven by a per-project .harness/config.json. Init into godot or web presets.",
+  "author": { "name": "River", "email": "riyazulfd@gmail.com" },
+  "homepage": "https://github.com/river/harness-kit",
+  "repository": "https://github.com/river/harness-kit",
+  "license": "MIT",
+  "keywords": ["harness", "verification", "plan", "hooks", "ci-gate", "godot", "web", "ralph-loop"],
+  "defaultEnabled": false,
+  "hooks": "./hooks/hooks.json",
+  "userConfig": {
+    "loop_threshold": {
+      "type": "number",
+      "title": "Loop-detection edit threshold",
+      "description": "Warn after this many edits to the same file in one session. Overridden per-project by config.loopDetection.threshold.",
+      "default": 5,
+      "min": 2,
+      "max": 50
+    },
+    "verification_mode": {
+      "type": "string",
+      "title": "Stop-hook verification strictness",
+      "description": "advisory = warn only; strict = exit 2 to block premature completion. Per-project config.verificationMode overrides this.",
+      "default": "strict"
+    },
+    "strict_gardening": {
+      "type": "boolean",
+      "title": "Block on doc drift",
+      "description": "If true, doc-gardening drift becomes a blocking gate instead of advisory.",
+      "default": false
+    }
+  }
+}

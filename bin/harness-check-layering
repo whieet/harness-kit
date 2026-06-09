@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# harness-check-layering — config-driven dependency-direction linter.
+# Replaces the 3 hardcoded Godot grep rules of scripts-tooling/check_layering.sh
+# with config.layeringRules[] = {scope (glob), forbidden (regex), message}.
+# A web project supplies its own triples (e.g. ui must not import db).
+#
+# Exit: 0 = no violations, 1 = at least one forbidden dependency found.
+set -uo pipefail
+LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")/../scripts/lib" && pwd)"
+# shellcheck source=../scripts/lib/config.sh
+source "$LIB/config.sh"
+cd "$HARNESS_PROJECT_DIR" 2>/dev/null || exit 0
+
+python3 - "$HARNESS_CONFIG" <<'PYEOF'
+import json, sys, os, glob, re
+cfg = json.load(open(sys.argv[1])) if os.path.exists(sys.argv[1]) else {}
+rules = cfg.get("layeringRules", [])
+if not rules:
+    print("  ✓ layering: no rules configured")
+    sys.exit(0)
+
+fail = 0
+for r in rules:
+    scope = r.get("scope", "")
+    forbidden = r.get("forbidden", "")
+    msg = r.get("message", "")
+    if not scope or not forbidden:
+        continue
+    try:
+        pat = re.compile(forbidden)
+    except re.error as e:
+        print("  ✗ invalid forbidden regex %r: %s" % (forbidden, e))
+        fail = 1
+        continue
+    for path in sorted(glob.glob(scope, recursive=True)):
+        if not os.path.isfile(path):
+            continue
+        try:
+            lines = open(path, errors="replace").read().splitlines()
+        except Exception:
+            continue
+        for n, line in enumerate(lines, 1):
+            if pat.search(line):
+                print("  ✗ %s:%d  %s" % (path, n, msg))
+                fail = 1
+                break  # one report per file is enough
+
+if fail:
+    print("  → fix the dependency direction above.")
+    sys.exit(1)
+print("  ✓ layering OK")
+PYEOF
