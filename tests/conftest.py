@@ -1,9 +1,21 @@
 """tests/conftest.py — pytest setup.
 
 Adds the repo root to sys.path so tests can `from tests._helpers import ...`.
-Also exports an `old_plugin_root` fixture that builds a checkout of HEAD's bash
-scripts in a tmpdir; parity tests run the old `bash bin/*` and `bash scripts/on-*.sh`
-against this checkout, then run the new Python against the live tree, and diff.
+
+Also exports an `old_plugin_root` session-scoped fixture that materializes the
+pre-port bash implementation into a tmpdir. Parity tests run the original
+`bash bin/*` and `bash scripts/on-*.sh` from this checkout against fresh
+fixtures, run the new Python against the live tree on identical fixtures,
+and assert equivalent stdout/stderr/exit-code.
+
+To survive the merge that retired the old .sh files, we DON'T use `git
+archive HEAD` — HEAD no longer contains them. Instead we walk history and
+pick the last commit whose tree still has `scripts/on-pre-edit.sh`. That
+commit (the pre-port baseline) becomes the parity oracle forever after.
+
+If no such commit is reachable (e.g. a shallow clone with depth=1 in CI),
+the fixture is marked skipped — every parity test then auto-skips, while
+the cross-platform smoke / d1 / d3 / d7 / d9 suites continue to run.
 """
 from __future__ import annotations
 
@@ -20,17 +32,50 @@ sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "scripts"))  # so `from harness import ...` works in-process
 
 
+# A canary file that existed in every pre-port commit; if it's in a commit's
+# tree, the rest of the old bash impl is there too.
+CANARY = "scripts/on-pre-edit.sh"
+
+
+def _find_last_commit_with_old_bash() -> str | None:
+    """Walk history newest→oldest, return the first sha whose tree has CANARY."""
+    try:
+        # All reachable commits. Capped at 200 to keep CI fast; in practice the
+        # baseline is one commit back.
+        log = subprocess.run(
+            ["git", "-C", str(REPO), "log", "--all", "--format=%H", "-n", "200"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return None
+    for sha in log.stdout.splitlines():
+        sha = sha.strip()
+        if not sha:
+            continue
+        # cat-file -e exits 0 if blob exists at that ref, 128 otherwise.
+        r = subprocess.run(
+            ["git", "-C", str(REPO), "cat-file", "-e", f"{sha}:{CANARY}"],
+            capture_output=True,
+            check=False,
+        )
+        if r.returncode == 0:
+            return sha
+    return None
+
+
 @pytest.fixture(scope="session")
 def old_plugin_root(tmp_path_factory) -> Path:
-    """Materialize the HEAD version of the plugin (the pre-port bash scripts)
-    into a tmpdir so parity tests can invoke them while the live tree contains
-    the new Python implementation.
-    """
+    sha = _find_last_commit_with_old_bash()
+    if sha is None:
+        pytest.skip(
+            f"no commit reachable from this clone contains {CANARY}; "
+            "parity oracle unavailable (try fetch-depth: 0 in CI)"
+        )
     out = tmp_path_factory.mktemp("old-plugin")
-    # `git archive HEAD | tar -x -C out` is the cleanest way to get a worktree
-    # of HEAD without polluting working dir.
     archive = subprocess.run(
-        ["git", "-C", str(REPO), "archive", "HEAD"],
+        ["git", "-C", str(REPO), "archive", sha],
         capture_output=True,
         check=True,
     )
@@ -39,7 +84,6 @@ def old_plugin_root(tmp_path_factory) -> Path:
         input=archive.stdout,
         check=True,
     )
-    # Make sure scripts have +x.
     for p in (out / "bin").iterdir():
         os.chmod(p, 0o755)
     for p in (out / "scripts").glob("*.sh"):
