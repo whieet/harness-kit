@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# run-hook — entry point invoked by hooks.json for every Claude Code event.
+#
+# Usage:  run-hook <event-name> [args...]
+# Forwards stdin (the hook payload JSON) unchanged.
+
+set -uo pipefail
+
+if [ -z "${1:-}" ]; then
+  echo "run-hook: missing event name" >&2
+  exit 0
+fi
+
+HARNESS_DISPATCH="$1"; shift
+HARNESS_KIT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export HARNESS_DISPATCH HARNESS_KIT_ROOT
+
+# shellcheck source=./lib/pyfind.sh
+source "$HARNESS_KIT_ROOT/scripts/lib/pyfind.sh" "$@"

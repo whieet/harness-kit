@@ -42,6 +42,17 @@ PreCompact、PostToolUse、Setup）—— 但**不含** harness 所需的任何*
 插件在**初始化之前处于惰性** —— 没有 `.harness/config.json` 时每个 hook 都是空操作，
 在未初始化的仓库上安装不会带来任何改变。
 
+## 系统要求
+
+| 平台 | 必需 |
+|---|---|
+| **macOS / Linux** | `python3`（≥3.9）和 `git`（系统通常自带）。 |
+| **Windows** | [Git for Windows](https://gitforwindows.org/)（提供 `git` + Git Bash）和 [Python 3](https://www.python.org/downloads/windows/)（≥3.9；确保 `python` 或 `py -3` 在 PATH 上）。Claude Code 在 Windows 下使用 Git Bash 执行 hook，因此 **WSL 不是必需的**。 |
+
+钩子启动脚本（`scripts/run-hook` 与 `bin/harness-*`）是极薄的 Bash 封装，
+负责定位 Python 解释器后转发到 `scripts/harness_main.py` —— 真正的逻辑全部在 Python 里，
+单一代码库同时跑 macOS / Linux / Windows。
+
 ## 命令
 
 | 命令 | 作用 |

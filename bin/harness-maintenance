@@ -1,68 +1,9 @@
 #!/usr/bin/env bash
-# harness-maintenance — Setup(maintenance) hook + manual repair tool.
-# Fires on `claude -p --maintenance` (Setup matcher 'maintenance'), or run directly.
-# Setup hooks CANNOT block — this only reports and repairs:
-#   - migrates legacy phases[] -> enabledCapabilities{} (the retired auto-router)
-#   - adds missing enabledCapabilities{} / effortRouting{} defaults
-#   - scaffolds the gitignored state dir + .harness/.gitignore
-#   - sanity-checks .harness/config.json
+# harness-maintenance — thin launcher; real implementation lives in scripts/harness/commands/.
+# See scripts/run-hook for the dispatcher protocol.
 set -uo pipefail
-INPUT="$(cat 2>/dev/null || true)"
-BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=../scripts/lib/config.sh
-source "$BIN_DIR/../scripts/lib/config.sh"
-harness_init_from_stdin "${INPUT:-}"
-if ! harness_has_config; then
-  echo "harness-maintenance: no .harness/config.json — run /harness-kit:init first."
-  exit 0
-fi
-cd "$HARNESS_PROJECT_DIR" 2>/dev/null || exit 0
-
-python3 - "$HARNESS_CONFIG" <<'PYEOF'
-import json, sys
-p = sys.argv[1]
-try:
-    cfg = json.load(open(p))
-except Exception as e:
-    print("harness-maintenance: .harness/config.json is INVALID JSON: %s" % e)
-    sys.exit(0)
-
-changed = []
-if "phases" in cfg:
-    del cfg["phases"]
-    changed.append("removed legacy phases[] (maturity auto-router retired)")
-if "enabledCapabilities" not in cfg:
-    cfg["enabledCapabilities"] = {
-        "planGate": True, "loopDetection": True, "toolTrace": True,
-        "evaluator": True, "contextSnapshot": True, "evaluatorAutoDispatch": False,
-    }
-    changed.append("added enabledCapabilities{} defaults")
-if "effortRouting" not in cfg:
-    cfg["effortRouting"] = {"enabled": False}
-    changed.append("added effortRouting{enabled:false}")
-
-# sanity checks (warn only)
-warns = []
-if not isinstance(cfg.get("gates", []), list):
-    warns.append("gates is not a list")
-if cfg.get("evaluator", {}).get("enabled") is not None and "evaluator" in cfg.get("enabledCapabilities", {}):
-    pass  # both coexist fine; cap controls on/off, evaluator{} holds rubricPath/mode
-
-if changed:
-    with open(p, "w") as f:
-        json.dump(cfg, f, ensure_ascii=False, indent=2)
-    print("harness-maintenance: migrated .harness/config.json:")
-    for c in changed:
-        print("  - " + c)
-else:
-    print("harness-maintenance: config already up to date.")
-for w in warns:
-    print("  WARN: " + w)
-PYEOF
-
-# scaffold state dir + gitignore
-mkdir -p "$(harness_state_dir)" 2>/dev/null || true
-GI="$HARNESS_PROJECT_DIR/.harness/.gitignore"
-[ -f "$GI" ] || printf 'state/\n' > "$GI"
-echo "harness-maintenance: state dir + .gitignore ok"
-exit 0
+HARNESS_KIT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+HARNESS_DISPATCH="harness-maintenance"
+export HARNESS_KIT_ROOT HARNESS_DISPATCH
+# shellcheck source=../scripts/lib/pyfind.sh
+source "$HARNESS_KIT_ROOT/scripts/lib/pyfind.sh" "$@"

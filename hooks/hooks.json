@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/on-session-start.sh\"",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/run-hook\" session-start",
             "timeout": 30,
             "statusMessage": "Harness: injecting session handoff"
           }
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/on-pre-edit.sh\"",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/run-hook\" pre-edit",
             "timeout": 20
           }
         ]
@@ -30,7 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/on-plan-approved.sh\"",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/run-hook\" plan-approved",
             "timeout": 20
           }
         ]
@@ -40,7 +40,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/on-post-edit.sh\"",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/run-hook\" post-edit",
             "timeout": 15
           }
         ]
@@ -50,7 +50,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/on-post-tool.sh\"",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/run-hook\" post-tool",
             "timeout": 10,
             "async": true
           }
@@ -63,7 +63,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/on-tool-failure.sh\"",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/run-hook\" tool-failure",
             "timeout": 10,
             "async": true
           }
@@ -75,7 +75,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/on-user-prompt.sh\"",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/run-hook\" user-prompt",
             "timeout": 10
           }
         ]
@@ -86,7 +86,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/on-pre-compact.sh\"",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/run-hook\" pre-compact",
             "timeout": 15
           }
         ]
@@ -109,7 +109,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/on-stop-verify.sh\"",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/run-hook\" stop-verify",
             "timeout": 300,
             "statusMessage": "Harness: pre-completion verification gate"
           }
