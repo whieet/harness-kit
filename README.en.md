@@ -125,7 +125,7 @@ After a one-time init, a typical task flows like this (〔auto〕= happens via h
 
 ## Configuration at a glance
 
-Everything project-specific lives in `.harness/config.json` (committed with your project). Key sections:
+Everything project-specific lives in `.harness/config.json` (committed with your project). **You usually don't hand-write it — just tell Claude Code what you want in plain language** ("add an `npm test` gate", "turn off loop detection", "forbid the UI layer from importing the DB") and it edits the file per the AI-oriented [configuration guide](./docs/configuration.en.md). Key sections:
 
 | Section | Meaning |
 | --- | --- |
@@ -139,7 +139,7 @@ Everything project-specific lives in `.harness/config.json` (committed with your
 | `effortRouting` | Effort-routing (Reasoning Sandwich) switch |
 | `evaluator` / `verificationRecipe` | Gen / Eval separation; maps each rubric dimension to a verify command or MCP tool |
 
-See [`templates/config.schema.json`](./templates/config.schema.json) for the full field reference.
+For full fields, annotated examples, and "user says → how to change it" recipes, see the [**configuration guide**](./docs/configuration.en.md) (written for the AI, handy for humans too); the machine-readable schema is [`templates/config.schema.json`](./templates/config.schema.json).
 
 ## Project presets
 

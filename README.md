@@ -123,7 +123,7 @@ flowchart LR
 
 ## 配置概览
 
-一切项目相关配置都在 `.harness/config.json`（随项目入库）。关键段：
+一切项目相关配置都在 `.harness/config.json`（随项目入库）。**你通常不必手写它——直接用自然语言让 Claude Code 改**（「加一个 `npm test` 门」「关掉循环检测」「禁止 UI 层直连数据库」），它会照着面向 AI 的 [配置指南](./docs/configuration.md) 编辑。关键段：
 
 | 配置段 | 含义 |
 | --- | --- |
@@ -137,7 +137,7 @@ flowchart LR
 | `effortRouting` | 努力分级（Reasoning Sandwich）开关 |
 | `evaluator` / `verificationRecipe` | 生成 / 评估分离；把每个 rubric 维度映射到验证命令或 MCP 工具 |
 
-完整字段见 [`templates/config.schema.json`](./templates/config.schema.json)。
+完整字段、带注释示例与「用户说→怎么改」配方见 [**配置指南**](./docs/configuration.md)（写给 AI，也方便人查）；机器可读 schema 见 [`templates/config.schema.json`](./templates/config.schema.json)。
 
 ## 项目预设
 
