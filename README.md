@@ -1,188 +1,143 @@
+<div align="center">
+
 # Harness Kit
 
-[English](README.en.md) | **中文** · 许可证 MIT
+**为 [Claude Code](https://claude.com/claude-code) 打造的项目无关 *harness engineering* 插件**
 
-> 把任意仓库变成一个自我校验的 **Plan → Build → Verify → Done**（规划 → 构建 → 校验 → 完成）闭环 —— 一个与项目无关的 Claude Code 工装（harness）插件。
+把计划门禁、完成前验证、循环检测与「生成 / 评估分离」，自动织入你的 AI 编码流程。
 
----
+[![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-Plugin-d97757)](https://claude.com/claude-code)
+[![Version](https://img.shields.io/badge/version-0.1.2-2ea44f)](./.claude-plugin/plugin.json)
+[![CI](https://github.com/whieet/harness-kit/actions/workflows/test.yml/badge.svg)](https://github.com/whieet/harness-kit/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
-## 一、介绍
+[English](./README.en.md) · **简体中文**
 
-### 从一个根本问题说起
-
-当你让 LLM 写代码时,**模型本身是固定的**。同一个模型,有人用它做出可靠的工程产出,有人却只得到「看起来能跑、实则漏洞百出」的代码。差别往往不在模型,而在**模型周围的一切** —— 它启动时能看到什么上下文、它的每一步动作受什么约束、它宣称「完成」之前要过哪些验证、出错后有没有反馈纠偏。
-
-这「模型周围的一切」就是 **harness(工装 / 挽具)**。LangChain、Anthropic、OpenAI 对它的定义一致:harness 不是模型,而是**围绕模型的上下文管理、约束、验证与反馈回路**。由此得到一个朴素但关键的结论:
-
-> **LLM 辅助开发的产出质量,主要由 harness 决定,而不是模型。**
-
-Harness Kit 就是从这个第一性原理出发的:既然 harness 才是杠杆所在,那就把一套好的 harness 做成可复用的工程产物。
-
-### Harness Kit 是什么
-
-Harness Kit 把一套**可复用、与项目无关**的 harness 打包成 Claude Code 插件。一条 `/harness-kit:init`,就让任意仓库获得一个自我校验的 **Plan → Build → Verify → Done** 闭环:
-
-- 每个会话以 git 状态、活动计划、关键文档作为**交接上下文**启动;
-- 编辑未规划的代码会**自动生成计划骨架**;
-- 反复编辑同一文件会收到「重新考虑方法」的提示;
-- 上下文压缩前后,把「哪个计划没完成、哪个验证没过」**快照下来再注入回去**,让契约穿越压缩;
-- 宣称「完成」时,Stop 钩子会跑项目的验证门禁 + 计划 DoD 自检,**过早的「完成」会被挡下来**;
-- 需要时,派发一个全新上下文、禁用写权限的**独立评估器**,按 rubric 给改动打分。
-
-### 它解决什么痛点
-
-LLM 辅助开发普遍缺一个**自动、可配置、贯穿全流程**(从会话开始到宣称完成)的工程检查框架。Claude Code 原生提供了 hook 的**事件**与**注入机制**(SessionStart / UserPromptSubmit 的 `additionalContext`、PreToolUse 上下文、Stop 的 `exit 2`、PreCompact、PostToolUse、Setup),但**没有任何具体的内容行为** —— 没有多门禁验证编排、没有循环检测、没有计划持久化、没有上下文快照。Harness Kit 把这些补齐,并全部接到原生事件上。
-
-### 适合谁
-
-用 Claude Code 做开发、希望产出能被**验证**而非「看起来能跑」的个人与团队。开箱自带 **godot** 与 **web** 两套预设,也支持 **custom** 任意项目。
+</div>
 
 ---
 
-## 二、设计哲学
+## 这是什么
 
-每一条原则,都从开头那个根本命题推导而来,采用 **问题 → 推导 → 落地** 的结构。
+Harness Kit 是一个 **Claude Code 插件**（专为 Claude Code 设计，**不是 codex 等其它 CLI**）。它借助 Claude Code 的 hooks / 斜杠命令 / 子代理 / 技能机制，在 AI 编码的关键节点自动加上「护栏」：动手前要有计划、收工前必须过验证门、反复改同一文件会预警、最终质量由一个独立的评估子代理打分。
 
-### 1. 与项目无关:插件代码零项目字面量
-- **问题**:一套 harness 若写死了某个项目的文件路径和命令,就只能服务那一个项目。
-- **推导**:harness 要能跨仓库复用,就必须把「项目相关」与「机制」彻底分离。
-- **落地**:所有项目相关内容(文件 glob、验证命令、分层规则、能力开关)都集中在每个项目唯一的 `.harness/config.json`;插件代码本身不含任何项目字面量,运行时也不对项目类型做分支。
+所有与具体项目相关的东西（验证命令、分层规则、计划目录、文档路径、指标……）都集中在每个项目自己的 `.harness/config.json` 里——插件代码本身**项目无关**，因此同一套 harness 能套用到 Godot、Web 或任意自定义技术栈。
 
-### 2. 未初始化即惰性:安装零副作用
-- **问题**:一个装上就改变行为的插件,会让人不敢装。
-- **推导**:安装这一步本身不应有任何副作用。
-- **落地**:没有 `.harness/config.json` 时,每个 hook 都是空操作(`exit 0`)。在未初始化的仓库装上 Harness Kit,什么都不会变。
+## 为什么需要它
 
-### 3. 能力由你掌控,而非自动路由
-- **问题**:一个「聪明」的自动路由器会替你决定何时收紧、何时放松验证,但它的判断未必对,而且不透明。
-- **推导**:harness 是脚手架,会随项目成熟而演进、最终被拆除 —— 这个节奏应由人掌握。
-- **落地**:`enabledCapabilities{}` 是一组**你拥有的开关**(`planGate`、`loopDetection`、`toolTrace`、`evaluator`、`contextSnapshot`,以及实验性的 `evaluatorAutoDispatch`)。你直接开关;工具只**建议**,绝不替你**强制**。
+AI 编码常见的几个失控点，正是 Harness Kit 要拦住的：
 
-### 4. 「完成」是一道门,不是一句声明
-- **问题**:LLM 很容易宣称「我做完了」,而实际上测试没过、计划的验收项没勾。
-- **推导**:「done」必须被**挣得**,而不是被**声明**。
-- **落地**:Stop 钩子在每次宣称完成时,跑配置里的阻塞门禁 + 检查活动计划的 DoD;`strict` 模式下任一项不过就 `exit 2`,挡住这次「完成」。(这就是俗称的 "Ralph Loop"。)
+- **未经计划就动手** —— 大改动缺少 Definition of Done，越改越偏。
+- **漏验证就收工** —— 没跑 lint / 构建 / 测试就宣布「完成」。
+- **自评偏差** —— 让生成者给自己打分，结论不可靠。
+- **上下文丢失** —— 长会话被压缩后，计划与进度凭空蒸发。
+- **文档与代码漂移** —— 文档逐渐与实现脱节、链接失效。
 
-### 5. 生成者与评估者分离
-- **问题**:让写代码的人给自己的代码打分,既有偏向、又容易自我合理化。
-- **推导**:评判者不该是产出者。
-- **落地**:评估器是一个**独立子代理** —— 全新上下文、禁用 Write/Edit,只能按 rubric 打分和给建议、不能动手修。任一维度 <3 即判 FAIL。
+## 核心纪律
 
-### 6. 契约必须穿越上下文压缩
-- **问题**:长会话会触发上下文压缩(compaction),压缩后「还有哪个计划没做完、哪个门禁失败」很容易丢失。
-- **推导**:这些是必须延续的契约,不能因压缩而蒸发。
-- **落地**:`PreCompact` 把当前计划 / 未勾 DoD / 失败门禁快照到 `.harness/state/`;压缩后下一次 `UserPromptSubmit`(以及 resume 时的 `SessionStart`)再注入一次。(PostCompact 注入不被官方支持,所以这是文档支持的路径。)
+| 纪律 | 作用 |
+| --- | --- |
+| 计划门禁 · *Plan-gating* | 编辑受管代码前需有覆盖它的计划，否则自动补一份计划骨架 |
+| 完成前验证门 · *Verification gate* | Stop 时自动跑 `harness-verify` 配置的门；strict 模式下不过则拦截收工 |
+| 循环检测 · *Loop detection* | 单文件在一次会话内反复编辑超阈值（默认 5）即预警，防止打转 |
+| 生成-评估分离 · *Gen · Eval* | 派出无编辑权限的 `evaluator` 子代理按 rubric 独立打分，杜绝自评 |
+| 上下文存活 · *Context survival* | 压缩前快照计划 / 进度，压缩后再注入，长会话不丢状态 |
+| 架构分层 · *Layering* | 按可配置的依赖方向规则检查跨层非法引用 |
+| 文档一致性 · *Doc coherence* | 校验计划状态、命名、占位内容、死链与架构漂移 |
+| 努力分级 · *Effort routing* | 低/中强度回合只跑 fast 档门（可选，默认关，绝不悄悄削弱验证）|
+| 能力开关 · *Capability toggles* | 每项 harness 行为都能在配置里单独开关，由你掌控 |
 
-### 7. 跨平台:单一内核 + 极薄启动器
-- **问题**:逻辑若散落在各平台的 shell 脚本里,既难测试又难移植。
-- **推导**:逻辑应集中在一处、可单元测试、可跨平台。
-- **落地**:所有 `bin/harness-*` 与 `scripts/run-hook` 都是极薄的 Bash 启动器,只负责定位 Python 解释器并转发;真正的逻辑全在单一 Python 核心(`scripts/harness/`),同一份代码原生跑 macOS / Linux / Windows(含 UTF-8 强制、跨平台进程检查)。
+## 快速上手
 
-### 8. 基于 trace 的自调,且只建议不强制
-- **问题**:一个门禁配久了可能早已无用,却没人发现。
-- **推导**:优化应基于**证据**,且尊重用户的最终判断。
-- **落地**:每次门禁 / 评估器执行都记进 `trace.jsonl`;`/harness-kit:trace-analyze` 据此分析(如「门禁 X 近 10 次 0 命中,考虑关掉」)并给出建议 —— 改不改,由你决定。
+> 前置：[Claude Code](https://claude.com/claude-code)。Harness Kit 是 Claude Code 插件，安装后默认启用。
 
-> 一句话总结这套哲学:**harness 是脚手架,项目成熟后该拆;所以能力是你拥有的开关,而不是替你做主的自动路由器。**
-
----
-
-## 三、使用说明
-
-### 系统要求
-
-| 平台 | 必需 |
-|---|---|
-| **macOS / Linux** | `python3`(≥3.9)与 `git`,通常系统自带。 |
-| **Windows** | [Git for Windows](https://gitforwindows.org/)(提供 `git` + Git Bash)与 [Python 3](https://www.python.org/downloads/windows/)(≥3.9,确保 `python` 或 `py -3` 在 PATH 上)。Claude Code 在 Windows 用 Git Bash 跑 hook,**无需 WSL**。 |
-
-> CI 矩阵在 macOS / Ubuntu / Windows × Python 3.9 与 3.12 上实测通过。
-
-### 安装
-
-Harness Kit 目前通过这个 GitHub 仓库以自定义 marketplace 方式分发：
+**1) 安装插件**（在 Claude Code 中输入）
 
 ```text
 /plugin marketplace add whieet/harness-kit
 /plugin install harness-kit@harness-kit
-/reload-plugins
 ```
 
-- 第一条命令把 GitHub 仓库 `whieet/harness-kit` 注册为本地插件市场。
-- 第二条命令从这个市场安装 `harness-kit` 插件。
-- `reload-plugins` 让它在当前会话生效（无需重启 Claude Code）。
+**2) 在你的项目里初始化**
 
-### 初始化
-
-```
-/harness-kit:init [godot|web|custom]
+```text
+/harness-kit:init
 ```
 
-检测或询问项目类型 → 生成 `.harness/config.json` + rubric + 计划/文档骨架 → 启用 git pre-commit 门禁。幂等;`--force` 重置。初始化之前,插件完全惰性。
+选择项目类型（`godot` / `web` / `custom`），它会脚手架生成 `.harness/config.json` + `rubric.md` + 计划目录，并启用 git pre-commit 门。幂等；想重置传 `reset`。
 
-### 生命周期:harness 接到哪些事件
+**3) 正常开发** —— PreToolUse / PostToolUse 等 hook 自动护栏（计划门、循环检测、追踪），你无需手动触发。
 
-| Claude Code 事件 | Harness 行为 |
-|---|---|
-| **SessionStart** | 注入交接:git 状态、活动计划、已启用能力、关键文档。 |
-| **PreToolUse**(Edit / Write) | 计划门禁:编辑匹配 `plan.codeGlob` 的文件且无计划时,自动生成计划骨架。 |
-| **PostToolUse**(ExitPlanMode) | 计划批准后持久化为活动计划。 |
-| **PostToolUse**(Edit) | 循环检测:同一文件编辑达阈值时,提示「重新考虑方法」。 |
-| **PreCompact** | 快照当前计划 / 未勾 DoD / 失败门禁到 `.harness/state/`。 |
-| **UserPromptSubmit** | 压缩后重注入一次快照。 |
-| **Stop** | 预完成验证门禁:跑阻塞门禁 + 检查 DoD;`strict` 失败则 `exit 2` 挡下「完成」。 |
+**4) 收工** —— Stop hook 自动跑验证门；strict 模式下不过则挡住「完成」。
 
-### 命令一览
+## 斜杠命令
 
 | 命令 | 作用 |
-|---|---|
-| `/harness-kit:init [godot\|web\|custom]` | 检测/询问项目类型,生成配置 + rubric + 骨架,启用 git 门禁。 |
-| `/harness-kit:plan` | 进入 plan 模式,以项目计划模板为初始内容。 |
-| `/harness-kit:verify` | 跑配置驱动的门禁编排器,逐项报告通过/失败。 |
-| `/harness-kit:evaluate` | 派发独立评估器子代理,按 rubric 给当前改动打分(任一维度 <3 = FAIL)。 |
-| `/harness-kit:advisor` | 被动面板:产物计数、已启用能力、配置门禁、trace 建议。 |
-| `/harness-kit:trace-analyze` | 分析 harness 自身 trace,给出门禁 / 配置调优建议。 |
+| --- | --- |
+| `/harness-kit:init` | 初始化：识别 / 询问项目类型，脚手架配置 + rubric + 计划骨架，启用 pre-commit 门 |
+| `/harness-kit:plan` | 启动 Plan→Build→Verify→Done 工作流；批准后由 hook 把计划落盘到计划目录 |
+| `/harness-kit:verify` | 手动运行验证门编排器，逐门报告通过 / 失败（Stop 门的手动版）|
+| `/harness-kit:advisor` | 展示当前成熟度阶段、背后的工件指标，以及已解锁的 harness 能力 |
+| `/harness-kit:evaluate` | 派出 skeptical `evaluator` 子代理，按 rubric 独立给当前改动打分 |
+| `/harness-kit:trace-analyze` | 分析会话 trace 的失败模式（通过率、会话失衡、高频改动文件），建议如何调优 |
 
-> 另:`claude -p --maintenance` 运行 `harness-maintenance`,迁移旧配置(`phases[]` → `enabledCapabilities{}`)、修复 state。
+## 平时怎么用
 
-### 配置:`.harness/config.json`
-
-插件代码零项目字面量,所有项目相关内容都集中在这一个 git 追踪的文件。关键字段:
-
-- `gates[]` —— 验证门禁(名称、命令、阻塞 / tier、跳过条件)
-- `layeringRules[]` —— 架构分层规则(scope glob、禁用 regex、补救建议)
-- `plan` —— 计划约定(目录、`codeGlob`、状态字段、DoD 正则)
-- `docs` —— 关键文档、扫描根、架构漂移检查
-- `metrics[]` —— 产物计数(文档、已完成计划等)
-- `enabledCapabilities{}` —— 能力开关(见设计哲学第 3 条)
-- `effortRouting` —— 可选的推理三明治:低 / 中 effort 仅跑 `tier:"fast"` 门禁(跳过会被记录,绝不静默),高+ effort 跑全部;**默认关**
-- `evaluator` / `verificationRecipe` —— 评估器 rubric 路径与「维度 → 检查」映射
-- `verificationMode` —— `advisory`(仅告警)或 `strict`(`exit 2` 阻断)
-
-完整 schema 见 `templates/config.schema.json`;`templates/godot/` 与 `templates/web/` 的预设是理解真实配置最快的途径。
-
-### 项目结构速览
-
-```
-scripts/harness/      Python 核心(hooks/ 与 commands/ 的全部逻辑)
-scripts/run-hook      bash hook 启动器(定位 Python 并转发)
-bin/harness-*         极薄 bash 命令启动器
-hooks/hooks.json      Claude Code hook 事件声明
-templates/            config schema、计划模板、godot / web 预设
-skills/               6 个斜杠命令前端(init / plan / verify / evaluate / advisor / trace-analyze)
-agents/evaluator.md   独立评估器子代理定义
+```mermaid
+flowchart LR
+    A["/init<br/>一次性脚手架"] --> B["/plan<br/>计划"]
+    B --> C["编码<br/>hook 自动护栏"]
+    C --> D["/verify<br/>验证门"]
+    D --> E["/evaluate<br/>独立评估"]
+    E --> F["收工<br/>Stop 验证门"]
+    F -. "/advisor · /trace-analyze 周期调优" .-> B
 ```
 
----
+初始化一次之后，平时的一次任务大致这样走（〔自动〕＝hook 自动发生，〔手动〕＝你输入命令）：
 
-## 迁移已有的手写 harness
+1. **会话开始** 〔自动〕—— SessionStart 注入交接：git 状态、进行中的计划、advisor 仪表盘、关键文档，Claude 一上来就接上「上次到哪了」。
+2. **规划** 〔手动·非平凡改动〕—— `/harness-kit:plan` 进入计划模式；你批准后 hook 自动把计划落盘并开始追踪 DoD。小改动可跳过。
+3. **编码** 〔自动护栏〕—— 每次编辑前检查该文件是否被计划覆盖（缺则补骨架）；编辑后累计循环计数，同一文件改太多次会预警；工具调用写入 trace。
+4. **随手自查** 〔手动·可选〕—— `/harness-kit:verify` 看验证门，`/harness-kit:advisor` 看阶段与能力。
+5. **收工验证** 〔自动·可拦截〕—— Stop 跑验证门＋未提交检查＋计划 DoD 自检；strict 模式不过会挡住「完成」，提示继续修。
+6. **独立评估** 〔手动·可选〕—— 宣布完成前 `/harness-kit:evaluate`，派无编辑权限的 `evaluator` 按 rubric 打分，避免自评。
+7. **上下文不丢** 〔自动〕—— 长会话被压缩时快照计划/进度，压缩后的下一条消息再注入，状态延续。
+8. **周期调优** 〔手动·偶尔〕—— `/harness-kit:trace-analyze` 看失败模式，据此微调 `.harness/config.json`。
 
-装插件 → `/harness-kit:init <type>` 生成等价 `.harness/config.json` → 在一个已知干净、一个已知脏的提交上确认 `/harness-kit:verify` 复现旧门禁结果 → 删旧脚本、从 `.claude/settings.json` 移除 `hooks` 块。已在用旧版 Harness Kit 配置?运行 `claude -p --maintenance` 把 `phases[]` 迁移成 `enabledCapabilities{}`。
+> 多数环节（1 / 3 / 5 / 7）全自动，你几乎不用操心；真正需要你出手的只有 `plan` / `verify` / `evaluate` / `advisor` 这几个命令。
 
-## 可选组合件(非依赖)
+## 配置概览
 
-Harness Kit **自包含**。以下 marketplace 插件可*补充*它,但不取代其核心:**claude-mem**(跨会话持久记忆)、**code-review**(官方,push 前 diff 评审)、**security-guidance**(官方,安全扫描)。
+一切项目相关配置都在 `.harness/config.json`（随项目入库）。关键段：
+
+| 配置段 | 含义 |
+| --- | --- |
+| `gates[]` | 有序的验证门，由 `harness-verify` 执行（取代写死的校验步骤）|
+| `verifyCmd` / `buildCmd` / `testCmd` | 验证 / 构建 / 测试入口命令 |
+| `layeringRules[]` | 依赖方向约束（作用域 glob + 禁止正则 + 修复提示）|
+| `plan` | 计划生命周期：目录、哪些代码改动需要计划（`codeGlob`）、状态字段、模板 |
+| `docs` | 关键文档、扫描根、架构路径、过期阈值、占位 / 漂移检测 |
+| `metrics[]` | 工件计数（按 glob），advisor 仪表盘的输入 |
+| `enabledCapabilities` | 各 harness 行为开关：`planGate` / `loopDetection` / `toolTrace` / `evaluator` / `contextSnapshot` 等 |
+| `effortRouting` | 努力分级（Reasoning Sandwich）开关 |
+| `evaluator` / `verificationRecipe` | 生成 / 评估分离；把每个 rubric 维度映射到验证命令或 MCP 工具 |
+
+完整字段见 [`templates/config.schema.json`](./templates/config.schema.json)。
+
+## 项目预设
+
+`/harness-kit:init` 提供三种脚手架（见 [`templates/`](./templates)）：
+
+- **godot** —— Godot 游戏：headless 编译门、分层规则，含玩法 / 视觉 / 集成 / 质量维度的 rubric。
+- **web** —— React / Vue / Vite / Next / Svelte：npm lint / test / build 门，含 UX / 集成 / 质量维度的 rubric。
+- **custom** —— 自定义技术栈，无预设，按需填写 `.harness/config.json`。
+
+## 环境要求
+
+- **Claude Code** —— 本工具是 Claude Code 插件，依赖其 hooks / 斜杠命令 / 子代理运行时；**不适用于 codex 等其它 CLI**。
+- **Python 3.9+** —— 核心逻辑为 Python，`bin/` 下为薄壳启动器。
+- **平台** —— macOS / Linux / Windows（Windows 走 Git Bash）。
 
 ## 许可证
 
-MIT —— 见 `LICENSE`。
+[MIT](./LICENSE) © River

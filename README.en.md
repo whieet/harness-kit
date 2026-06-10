@@ -1,188 +1,145 @@
+<div align="center">
+
 # Harness Kit
 
-**English** | [中文](README.md) · MIT License
+**Project-agnostic *harness engineering* for [Claude Code](https://claude.com/claude-code)**
 
-> Turn any repo into a self-verifying **Plan → Build → Verify → Done** loop — a project-agnostic harness plugin for Claude Code.
+Weaves plan-gating, pre-completion verification, loop detection, and Generator / Evaluator separation directly into your AI coding workflow.
 
----
+[![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-Plugin-d97757)](https://claude.com/claude-code)
+[![Version](https://img.shields.io/badge/version-0.1.2-2ea44f)](./.claude-plugin/plugin.json)
+[![CI](https://github.com/whieet/harness-kit/actions/workflows/test.yml/badge.svg)](https://github.com/whieet/harness-kit/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
-## 1. Introduction
+**English** · [简体中文](./README.md)
 
-### Start from one fundamental question
+</div>
 
-When you ask an LLM to write code, **the model itself is fixed**. The same model produces reliable engineering for one person and "looks-like-it-runs, actually-full-of-holes" code for another. The difference usually isn't the model — it's **everything around the model**: what context it sees on startup, what constrains each of its actions, what verification it must pass before it claims "done," and whether errors feed back into a correction.
-
-That "everything around the model" is the **harness**. LangChain, Anthropic, and OpenAI converge on the same definition: the harness is not the model, but the **context management, constraints, verification, and feedback loop surrounding it**. Which leads to a plain but pivotal conclusion:
-
-> **The quality of LLM-assisted development is determined mostly by the harness, not the model.**
-
-Harness Kit starts from exactly this first principle: if the harness is where the leverage is, then turn a good harness into a reusable engineering artifact.
-
-### What Harness Kit is
-
-Harness Kit packages a **reusable, project-agnostic** harness as a Claude Code plugin. A single `/harness-kit:init` gives any repo a self-verifying **Plan → Build → Verify → Done** loop:
-
-- every session starts with git state, active plans, and key docs injected as **handoff context**;
-- editing un-planned code **auto-scaffolds a plan**;
-- repeated edits to the same file inject a "reconsider your approach" nudge;
-- around context compaction it **snapshots and re-injects** "which plan is unfinished, which verification didn't pass," so the contract survives;
-- when you claim "done," a Stop hook runs your verification gates + plan-DoD check, and **premature "done" gets blocked**;
-- on demand, it dispatches an **independent evaluator** — fresh context, write-tools disabled — that scores the change against your rubric.
-
-### What pain it solves
-
-LLM-assisted development broadly lacks an **automatic, configurable, end-to-end** engineering-check framework spanning from session start to the "done" claim. Claude Code natively provides hook **events** and **injection mechanisms** (SessionStart / UserPromptSubmit `additionalContext`, PreToolUse context, Stop `exit 2`, PreCompact, PostToolUse, Setup), but **none of the content behaviors** — no multi-gate verification orchestration, no loop detection, no plan persistence, no context snapshot. Harness Kit supplies exactly those, wired through the native events.
-
-### Who it's for
-
-Individuals and teams using Claude Code who want output that can be **verified** rather than merely "looks like it runs." Two presets ship in the box — **godot** and **web** — plus **custom** for any project.
+> The Simplified Chinese [README.md](./README.md) is the authoritative version; this English page mirrors it.
 
 ---
 
-## 2. Design Philosophy
+## What it is
 
-Every principle is derived from the thesis above, in a **Problem → Reasoning → Implementation** form.
+Harness Kit is a **Claude Code plugin** (built for Claude Code — **not codex or other CLIs**). Using Claude Code's hooks / slash commands / subagents / skills, it adds automatic guardrails at the critical moments of AI coding: there must be a plan before you edit, the verification gate must pass before you finish, repeated edits to the same file raise a warning, and final quality is scored by an independent evaluator subagent.
 
-### 1. Project-agnostic: zero project literals in plugin code
-- **Problem**: a harness that hard-codes one project's paths and commands can only ever serve that one project.
-- **Reasoning**: to be reusable across repos, "project-specific" must be cleanly separated from "mechanism."
-- **Implementation**: everything project-specific (file globs, verify commands, layering rules, capability switches) lives in a single per-project `.harness/config.json`; the plugin code contains no project literals and never branches on project type at runtime.
+Everything project-specific (verify commands, layering rules, plan directory, doc paths, metrics…) lives in each project's own `.harness/config.json` — the plugin code itself is **project-agnostic**, so the same harness applies to Godot, web, or any custom stack.
 
-### 2. Inert until initialized: zero side effects on install
-- **Problem**: a plugin that changes behavior the moment it's installed makes people afraid to install it.
-- **Reasoning**: installing should, in itself, have no side effects.
-- **Implementation**: with no `.harness/config.json`, every hook is a no-op (`exit 0`). Installing Harness Kit on an un-initialized repo changes nothing.
+## Why you need it
 
-### 3. Capabilities are user-owned, not auto-routed
-- **Problem**: a "smart" auto-router decides for you when to tighten or loosen verification — but its judgment may be wrong, and it's opaque.
-- **Reasoning**: the harness is scaffolding; it evolves and is eventually torn down as the project matures — that cadence should be in human hands.
-- **Implementation**: `enabledCapabilities{}` is a set of **switches you own** (`planGate`, `loopDetection`, `toolTrace`, `evaluator`, `contextSnapshot`, plus experimental `evaluatorAutoDispatch`). You toggle them directly; the tool only **suggests**, never **forces**.
+Harness Kit is built to stop the common ways AI coding goes off the rails:
 
-### 4. "Done" is a gate, not a claim
-- **Problem**: an LLM will readily declare "I'm finished" while tests fail and the plan's acceptance items are unchecked.
-- **Reasoning**: "done" must be **earned**, not **declared**.
-- **Implementation**: on every completion claim, the Stop hook runs the blocking gates from config + checks active-plan DoD; in `strict` mode any failure means `exit 2`, blocking that completion. (This is the so-called "Ralph Loop.")
+- **Editing without a plan** — large changes lack a Definition of Done and drift.
+- **Finishing without verifying** — declaring "done" without running lint / build / test.
+- **Self-grading bias** — letting the generator score its own work is unreliable.
+- **Lost context** — plans and progress vanish after a long session is compacted.
+- **Doc / code drift** — docs slowly diverge from the implementation, links rot.
 
-### 5. Generator/Evaluator separation
-- **Problem**: letting the author grade their own code is both biased and prone to self-rationalization.
-- **Reasoning**: the judge shouldn't be the producer.
-- **Implementation**: the evaluator is an **independent subagent** — fresh context, Write/Edit disabled — that can only score against the rubric and advise, never fix. Any dimension < 3 = FAIL.
+## Core disciplines
 
-### 6. Contracts must survive context compaction
-- **Problem**: long sessions trigger compaction, after which "which plan is unfinished, which gate failed" is easily lost.
-- **Reasoning**: these are contracts that must persist; they can't evaporate just because of compaction.
-- **Implementation**: `PreCompact` snapshots the current plan / unchecked DoD / failed gate to `.harness/state/`; the next `UserPromptSubmit` afterward (and `SessionStart` on resume) re-injects it once. (PostCompact injection isn't officially supported, so this is the documented path.)
+| Discipline | What it does |
+| --- | --- |
+| Plan-gating | A code edit needs a covering plan first; otherwise a plan skeleton is scaffolded for you |
+| Verification gate | On Stop, runs the gates configured in `harness-verify`; in strict mode a failure blocks completion |
+| Loop detection | Warns when a single file is edited past the threshold (default 5) in one session, preventing churn |
+| Gen · Eval separation | Dispatches an edit-less `evaluator` subagent to score against the rubric — no self-grading |
+| Context survival | Snapshots plans / progress before compaction and re-injects after, so long sessions keep state |
+| Layering | Checks illegal cross-layer references against configurable dependency-direction rules |
+| Doc coherence | Validates plan status, naming, placeholder content, dead links, and architecture drift |
+| Effort routing | Low/medium-effort turns run only `fast`-tier gates (optional, off by default — never silently weakens verification) |
+| Capability toggles | Every harness behavior can be switched on/off individually in config — you stay in control |
 
-### 7. Cross-platform: a single core + ultra-thin launchers
-- **Problem**: logic scattered across per-platform shell scripts is hard to test and hard to port.
-- **Reasoning**: logic should live in one place — unit-testable and cross-platform.
-- **Implementation**: every `bin/harness-*` and `scripts/run-hook` is an ultra-thin Bash launcher that only locates a Python interpreter and forwards; the real logic lives in a single Python core (`scripts/harness/`), one codebase running natively on macOS / Linux / Windows (with forced UTF-8 and cross-platform process checks).
+## Quick start
 
-### 8. Trace-driven self-tuning — advisory, never forced
-- **Problem**: a gate configured long ago may have become useless without anyone noticing.
-- **Reasoning**: tuning should be **evidence-based** and respect the user's final judgment.
-- **Implementation**: every gate / evaluator run is recorded to `trace.jsonl`; `/harness-kit:trace-analyze` analyzes it (e.g. "gate X caught 0 issues in 10 runs — consider disabling") and **suggests** — you decide whether to change anything.
+> Prerequisite: [Claude Code](https://claude.com/claude-code). Harness Kit is a Claude Code plugin and is enabled by default once installed.
 
-> The philosophy in one line: **the harness is scaffolding meant to be torn down as the project matures — so capabilities are switches you own, not an auto-router that decides for you.**
-
----
-
-## 3. Usage
-
-### Requirements
-
-| Platform | Required |
-|---|---|
-| **macOS / Linux** | `python3` (≥3.9) and `git` — both usually preinstalled. |
-| **Windows** | [Git for Windows](https://gitforwindows.org/) (provides `git` + Git Bash) and [Python 3](https://www.python.org/downloads/windows/) (≥3.9 — make sure `python` or `py -3` is on PATH). Claude Code runs hooks via Git Bash on Windows, so **WSL is not required**. |
-
-> The CI matrix passes on macOS / Ubuntu / Windows × Python 3.9 and 3.12.
-
-### Install
-
-Harness Kit is distributed as a custom marketplace from this GitHub repo:
+**1) Install the plugin** (type inside Claude Code)
 
 ```text
 /plugin marketplace add whieet/harness-kit
 /plugin install harness-kit@harness-kit
-/reload-plugins
 ```
 
-- The first command registers GitHub repo `whieet/harness-kit` as a local plugin marketplace.
-- The second command installs the `harness-kit` plugin from that marketplace.
-- `reload-plugins` activates it in the current session (no restart needed).
+**2) Initialize it in your project**
 
-### Initialize
-
-```
-/harness-kit:init [godot|web|custom]
+```text
+/harness-kit:init
 ```
 
-Detect or ask the project type → scaffold `.harness/config.json` + rubric + plan/docs skeleton → enable the git pre-commit gate. Idempotent; `--force` resets. Until initialized, the plugin is fully inert.
+Pick a project type (`godot` / `web` / `custom`). It scaffolds `.harness/config.json` + `rubric.md` + a plan directory and enables the git pre-commit gate. Idempotent; pass `reset` to overwrite.
 
-### Lifecycle: which events the harness hooks into
+**3) Code as usual** — PreToolUse / PostToolUse hooks apply guardrails automatically (plan gate, loop detection, tracing); nothing to trigger manually.
 
-| Claude Code event | Harness behavior |
-|---|---|
-| **SessionStart** | Inject handoff: git state, active plans, enabled capabilities, key docs. |
-| **PreToolUse** (Edit / Write) | Plan gate: editing a file matching `plan.codeGlob` with no plan auto-scaffolds one. |
-| **PostToolUse** (ExitPlanMode) | Persist the approved plan as an active plan. |
-| **PostToolUse** (Edit) | Loop detection: at the edit threshold for one file, nudge "reconsider your approach." |
-| **PreCompact** | Snapshot current plan / unchecked DoD / failed gate to `.harness/state/`. |
-| **UserPromptSubmit** | Re-inject the snapshot once after compaction. |
-| **Stop** | Pre-completion gate: run blocking gates + check DoD; in `strict`, failure means `exit 2`, blocking "done." |
+**4) Finish** — the Stop hook runs the verification gate; in strict mode a failure blocks "done".
 
-### Commands
+## Slash commands
 
 | Command | What it does |
-|---|---|
-| `/harness-kit:init [godot\|web\|custom]` | Detect/ask project type, scaffold config + rubric + skeleton, enable the git gate. |
-| `/harness-kit:plan` | Enter plan mode seeded with the project plan template. |
-| `/harness-kit:verify` | Run the config-driven gate orchestrator and report per-gate pass/fail. |
-| `/harness-kit:evaluate` | Dispatch the independent evaluator subagent to score the current change (any dimension < 3 = FAIL). |
-| `/harness-kit:advisor` | Passive dashboard: artifact counts, enabled capabilities, configured gates, trace suggestions. |
-| `/harness-kit:trace-analyze` | Analyze the harness's own trace and suggest gate / config tuning. |
+| --- | --- |
+| `/harness-kit:init` | Initialize: detect / ask project type, scaffold config + rubric + plan skeleton, enable the pre-commit gate |
+| `/harness-kit:plan` | Start the Plan→Build→Verify→Done workflow; on approval a hook persists the plan to the plan directory |
+| `/harness-kit:verify` | Run the verification-gate orchestrator and report per-gate pass / fail (manual counterpart to the Stop gate) |
+| `/harness-kit:advisor` | Show the current maturity phase, the artifact metrics behind it, and which harness capabilities are unlocked |
+| `/harness-kit:evaluate` | Dispatch the skeptical `evaluator` subagent to score the current change against the rubric |
+| `/harness-kit:trace-analyze` | Analyze the session trace for failure patterns (pass rate, session imbalance, high-churn files) and suggest tuning |
 
-> Also: `claude -p --maintenance` runs `harness-maintenance` (migrate legacy config `phases[]` → `enabledCapabilities{}`, repair state).
+## Everyday workflow
 
-### Configuration: `.harness/config.json`
-
-Plugin code has zero project literals; everything project-specific lives in this one git-tracked file. Key fields:
-
-- `gates[]` — verification gates (name, command, blocking / tier, skip conditions)
-- `layeringRules[]` — architecture layering rules (scope glob, forbidden regex, remediation)
-- `plan` — plan conventions (directory, `codeGlob`, status field, DoD regex)
-- `docs` — key docs, scan roots, architecture-drift checks
-- `metrics[]` — artifact counts (docs, completed plans, etc.)
-- `enabledCapabilities{}` — capability switches (see Design Philosophy #3)
-- `effortRouting` — opt-in Reasoning Sandwich: low/medium-effort turns run only `tier:"fast"` gates (skips are logged, never silent); high+ runs everything; **off by default**
-- `evaluator` / `verificationRecipe` — evaluator rubric path and dimension → check mapping
-- `verificationMode` — `advisory` (warn only) or `strict` (`exit 2` to block)
-
-See `templates/config.schema.json` for the full key reference; the presets in `templates/godot/` and `templates/web/` are the fastest way to understand a real config.
-
-### Project layout at a glance
-
-```
-scripts/harness/      Python core (all logic for hooks/ and commands/)
-scripts/run-hook      bash hook launcher (locate Python, forward)
-bin/harness-*         ultra-thin bash command launchers
-hooks/hooks.json      Claude Code hook-event declarations
-templates/            config schema, plan template, godot / web presets
-skills/               6 slash-command frontends (init / plan / verify / evaluate / advisor / trace-analyze)
-agents/evaluator.md   independent evaluator subagent definition
+```mermaid
+flowchart LR
+    A["/init<br/>one-time scaffold"] --> B["/plan"]
+    B --> C["code<br/>hook guardrails"]
+    C --> D["/verify<br/>gate"]
+    D --> E["/evaluate<br/>independent score"]
+    E --> F["finish<br/>Stop gate"]
+    F -. "/advisor · /trace-analyze tuning" .-> B
 ```
 
----
+After a one-time init, a typical task flows like this (〔auto〕= happens via hooks, 〔manual〕= you type a command):
 
-## Migrating an existing hand-rolled harness
+1. **Session start** 〔auto〕— SessionStart injects a handoff: git state, in-progress plans, the advisor dashboard, key docs — so Claude immediately picks up "where it left off".
+2. **Plan** 〔manual · non-trivial change〕— `/harness-kit:plan` enters plan mode; once you approve, a hook persists the plan and starts tracking its DoD. Skip for small edits.
+3. **Code** 〔auto guardrails〕— before each edit, checks the file is covered by a plan (scaffolds a skeleton if not); after each edit, increments the loop counter and warns on excessive churn; tool calls are written to the trace.
+4. **Spot-check** 〔manual · optional〕— `/harness-kit:verify` to run the gates, `/harness-kit:advisor` to see phase and capabilities.
+5. **Finish gate** 〔auto · can block〕— Stop runs the verification gates + uncommitted check + plan-DoD self-check; in strict mode a failure blocks "done" and prompts more fixes.
+6. **Independent eval** 〔manual · optional〕— before declaring done, `/harness-kit:evaluate` dispatches the edit-less `evaluator` to score against the rubric, avoiding self-grading.
+7. **Context survives** 〔auto〕— on compaction, plans/progress are snapshotted and re-injected on the next message, so state carries over.
+8. **Periodic tuning** 〔manual · occasional〕— `/harness-kit:trace-analyze` surfaces failure patterns to fine-tune `.harness/config.json`.
 
-Install the plugin → `/harness-kit:init <type>` to generate an equivalent `.harness/config.json` → confirm `/harness-kit:verify` reproduces your old gate results on a known-clean and a known-dirty commit → delete the old scripts and remove the `hooks` block from `.claude/settings.json`. Already on an older Harness Kit config? Run `claude -p --maintenance` to migrate `phases[]` → `enabledCapabilities{}`.
+> Steps 1 / 3 / 5 / 7 are fully automatic — you barely think about them; the only commands you actually reach for are `plan` / `verify` / `evaluate` / `advisor`.
 
-## Optional composables (not dependencies)
+## Configuration at a glance
 
-Harness Kit is **self-contained**. These marketplace plugins *complement* it but don't replace its core: **claude-mem** (durable cross-session memory), **code-review** (official, pre-push diff review), **security-guidance** (official, security scanning).
+Everything project-specific lives in `.harness/config.json` (committed with your project). Key sections:
+
+| Section | Meaning |
+| --- | --- |
+| `gates[]` | Ordered verification gates run by `harness-verify` (replaces hardcoded steps) |
+| `verifyCmd` / `buildCmd` / `testCmd` | Verify / build / test entrypoint commands |
+| `layeringRules[]` | Dependency-direction constraints (scope glob + forbidden regex + remediation hint) |
+| `plan` | Plan lifecycle: directory, which edits require a plan (`codeGlob`), status field, template |
+| `docs` | Key docs, scan roots, architecture path, staleness thresholds, placeholder / drift detection |
+| `metrics[]` | Artifact counts (by glob) — input to the advisor dashboard |
+| `enabledCapabilities` | Per-behavior switches: `planGate` / `loopDetection` / `toolTrace` / `evaluator` / `contextSnapshot`, etc. |
+| `effortRouting` | Effort-routing (Reasoning Sandwich) switch |
+| `evaluator` / `verificationRecipe` | Gen / Eval separation; maps each rubric dimension to a verify command or MCP tool |
+
+See [`templates/config.schema.json`](./templates/config.schema.json) for the full field reference.
+
+## Project presets
+
+`/harness-kit:init` ships three scaffolds (see [`templates/`](./templates)):
+
+- **godot** — Godot games: headless compile gate, layering rules, and a rubric with gameplay / visual / integration / quality dimensions.
+- **web** — React / Vue / Vite / Next / Svelte: npm lint / test / build gates, and a rubric with UX / integration / quality dimensions.
+- **custom** — Your own stack, no preset; fill in `.harness/config.json` as needed.
+
+## Requirements
+
+- **Claude Code** — this is a Claude Code plugin and relies on its hooks / slash-command / subagent runtime; **not for codex or other CLIs**.
+- **Python 3.9+** — the core logic is Python; `bin/` holds thin launchers.
+- **Platforms** — macOS / Linux / Windows (Windows runs via Git Bash).
 
 ## License
 
-MIT — see `LICENSE`.
+[MIT](./LICENSE) © River
