@@ -7,7 +7,7 @@
 Weaves plan-gating, pre-completion verification, loop detection, and Generator / Evaluator separation directly into your AI coding workflow.
 
 [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-Plugin-d97757)](https://claude.com/claude-code)
-[![Version](https://img.shields.io/badge/version-0.1.2-2ea44f)](./.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-0.1.3-2ea44f)](./.claude-plugin/plugin.json)
 [![CI](https://github.com/whieet/harness-kit/actions/workflows/test.yml/badge.svg)](https://github.com/whieet/harness-kit/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
@@ -81,7 +81,7 @@ Harness Kit is built to stop the common ways AI coding goes off the rails:
 /harness-kit:init
 ```
 
-Pick a project type (`godot` / `web` / `custom`). It scaffolds `.harness/config.json` + `rubric.md` + a plan directory and enables the git pre-commit gate. Idempotent; pass `reset` to overwrite.
+Pick a project type (`godot` / `web` / `custom`). It scaffolds `.harness/config.json` + `rubric.md` + a plan directory and enables the git pre-commit gate; if the project has no `CLAUDE.md` yet, it also scaffolds a ToC-style project constitution (iron laws / workflow / repo map / verification SOP), then runs a harness-scoped codebase analysis to fill in the blanks and tune the config. An existing `CLAUDE.md` is never touched (not even by `--force`). Pass `--lang zh` for the Chinese constitution, `--no-claude-md` to skip it. Idempotent; pass `reset` to overwrite the config.
 
 **3) Code as usual** — PreToolUse / PostToolUse hooks apply guardrails automatically (plan gate, loop detection, tracing); nothing to trigger manually.
 
@@ -91,7 +91,7 @@ Pick a project type (`godot` / `web` / `custom`). It scaffolds `.harness/config.
 
 | Command | What it does |
 | --- | --- |
-| `/harness-kit:init` | Initialize: detect / ask project type, scaffold config + rubric + plan skeleton, enable the pre-commit gate |
+| `/harness-kit:init` | Initialize: detect / ask project type, scaffold config + rubric + plan skeleton + a ToC-style CLAUDE.md constitution (only when absent), enable the pre-commit gate, then analyze the codebase to fill in the blanks and tune the config |
 | `/harness-kit:plan` | Start the Plan→Build→Verify→Done workflow; on approval a hook persists the plan to the plan directory |
 | `/harness-kit:verify` | Run the verification-gate orchestrator and report per-gate pass / fail (manual counterpart to the Stop gate) |
 | `/harness-kit:advisor` | Show the current maturity phase, the artifact metrics behind it, and which harness capabilities are unlocked |
@@ -149,11 +149,25 @@ For full fields, annotated examples, and "user says → how to change it" recipe
 - **web** — React / Vue / Vite / Next / Svelte: npm lint / test / build gates, and a rubric with UX / integration / quality dimensions.
 - **custom** — Your own stack, no preset; fill in `.harness/config.json` as needed.
 
+All three presets share one bilingual CLAUDE.md constitution template ([`claude-md-template.en.md`](./templates/claude-md-template.en.md) / [`claude-md-template.zh.md`](./templates/claude-md-template.zh.md)) — generic harness engineering discipline; project facts are filled in by the post-init codebase analysis.
+
 ## Requirements
 
 - **Claude Code** — this is a Claude Code plugin and relies on its hooks / slash-command / subagent runtime; **not for codex or other CLIs**.
 - **Python 3.9+** — the core logic is Python; `bin/` holds thin launchers.
 - **Platforms** — macOS / Linux / Windows (Windows runs via Git Bash).
+
+## Testing & quality
+
+A four-layer test pyramid: unit/parity (L1) → structure + full-session replay e2e (L2, no model calls) → a **real headless Claude** scenario suite (L3, one live scenario per discipline) → a **3-judge AI conformance audit** (L4) against 17 principles distilled from the [references](#references--further-reading).
+
+```bash
+python3 -m pytest tests              # L1+L2, free; CI runs it on push to main / PRs, all platforms
+claude plugin validate . --strict    # strict manifest validation, free
+bash scripts/dev-e2e.sh full         # L3+L4: 6 scenarios + the 3-judge audit (real Claude)
+```
+
+See the [testing guide](./docs/testing.en.md); for the honest comparison against the two-month man-in-the-mirror blueprint, see [benchmark](./docs/benchmark.md).
 
 ## References & further reading
 

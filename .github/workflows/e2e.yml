@@ -1,0 +1,92 @@
+name: e2e
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *" # daily live run
+
+jobs:
+  # Free, no API key: validates the plugin + marketplace manifests strictly.
+  plugin-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+      - name: Validate plugin manifests (strict)
+        run: claude plugin validate . --strict
+
+  # Drives a real headless Claude through every harness discipline (SC-1..SC-6)
+  # plus the 3-judge rubric audit. Needs the ANTHROPIC_API_KEY secret; skipped
+  # cleanly when it is absent (e.g. forks).
+  live-e2e:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    needs: plugin-validate
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      E2E_OUT_DIR: ${{ runner.temp }}/e2e
+      E2E_ISOLATE_HOME: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check secret
+        id: secret
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::ANTHROPIC_API_KEY secret not set — skipping live e2e"
+          else
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-python@v5
+        if: steps.secret.outputs.available == 'true'
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        if: steps.secret.outputs.available == 'true'
+        with:
+          node-version: 20
+      - name: Install Claude Code CLI + pytest
+        if: steps.secret.outputs.available == 'true'
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          python -m pip install --quiet pytest
+      - name: Configure git identity
+        if: steps.secret.outputs.available == 'true'
+        run: |
+          git config --global user.email "ci@example.com"
+          git config --global user.name "CI"
+      - name: Live e2e (all scenarios + 3-judge audit)
+        if: steps.secret.outputs.available == 'true'
+        run: |
+          set +e
+          bash scripts/dev-e2e.sh full
+          rc=$?
+          set -e
+          if [ "$rc" = "3" ]; then
+            echo "::warning::live e2e inconclusive — upstream rate limit; re-run via workflow_dispatch later"
+            exit 0
+          fi
+          exit "$rc"
+      - name: Upload run artifacts
+        if: always() && steps.secret.outputs.available == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-e2e-artifacts
+          path: |
+            ${{ runner.temp }}/e2e/**/run.jsonl
+            ${{ runner.temp }}/e2e/probe.jsonl
+            ${{ runner.temp }}/e2e/**/evidence-*.json
+            ${{ runner.temp }}/e2e/evidence-probe.json
+            ${{ runner.temp }}/e2e/evidence.json
+            ${{ runner.temp }}/e2e/audit.json
+            ${{ runner.temp }}/e2e/judge-*.json
+          if-no-files-found: warn

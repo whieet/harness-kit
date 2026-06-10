@@ -7,7 +7,7 @@
 把计划门禁、完成前验证、循环检测与「生成 / 评估分离」，自动织入你的 AI 编码流程。
 
 [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-Plugin-d97757)](https://claude.com/claude-code)
-[![Version](https://img.shields.io/badge/version-0.1.2-2ea44f)](./.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-0.1.3-2ea44f)](./.claude-plugin/plugin.json)
 [![CI](https://github.com/whieet/harness-kit/actions/workflows/test.yml/badge.svg)](https://github.com/whieet/harness-kit/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
@@ -79,7 +79,7 @@ AI 编码常见的几个失控点，正是 Harness Kit 要拦住的：
 /harness-kit:init
 ```
 
-选择项目类型（`godot` / `web` / `custom`），它会脚手架生成 `.harness/config.json` + `rubric.md` + 计划目录，并启用 git pre-commit 门。幂等；想重置传 `reset`。
+选择项目类型（`godot` / `web` / `custom`），它会脚手架生成 `.harness/config.json` + `rubric.md` + 计划目录，并启用 git pre-commit 门；若项目尚无 `CLAUDE.md`，再生成一份 ToC 式工程章程（铁律 / 工作流 / 仓库地图 / 验证 SOP），随后做一次 harness 范围的 codebase 分析填掉占位并校准配置。已有 `CLAUDE.md` 则绝不触碰（连 `--force` 也不会）。中文章程传 `--lang zh`，不要章程传 `--no-claude-md`。幂等；想重置配置传 `reset`。
 
 **3) 正常开发** —— PreToolUse / PostToolUse 等 hook 自动护栏（计划门、循环检测、追踪），你无需手动触发。
 
@@ -89,7 +89,7 @@ AI 编码常见的几个失控点，正是 Harness Kit 要拦住的：
 
 | 命令 | 作用 |
 | --- | --- |
-| `/harness-kit:init` | 初始化：识别 / 询问项目类型，脚手架配置 + rubric + 计划骨架，启用 pre-commit 门 |
+| `/harness-kit:init` | 初始化：识别 / 询问项目类型，脚手架配置 + rubric + 计划骨架 +（缺则建的）ToC 式 CLAUDE.md 章程，启用 pre-commit 门，并分析 codebase 填占位、校准配置 |
 | `/harness-kit:plan` | 启动 Plan→Build→Verify→Done 工作流；批准后由 hook 把计划落盘到计划目录 |
 | `/harness-kit:verify` | 手动运行验证门编排器，逐门报告通过 / 失败（Stop 门的手动版）|
 | `/harness-kit:advisor` | 展示当前成熟度阶段、背后的工件指标，以及已解锁的 harness 能力 |
@@ -147,11 +147,25 @@ flowchart LR
 - **web** —— React / Vue / Vite / Next / Svelte：npm lint / test / build 门，含 UX / 集成 / 质量维度的 rubric。
 - **custom** —— 自定义技术栈，无预设，按需填写 `.harness/config.json`。
 
+三种预设共享一份双语 CLAUDE.md 章程模板（[`claude-md-template.en.md`](./templates/claude-md-template.en.md) / [`claude-md-template.zh.md`](./templates/claude-md-template.zh.md)），内容为通用 harness engineering 纪律，项目事实由 init 后的 codebase 分析填入。
+
 ## 环境要求
 
 - **Claude Code** —— 本工具是 Claude Code 插件，依赖其 hooks / 斜杠命令 / 子代理运行时；**不适用于 codex 等其它 CLI**。
 - **Python 3.9+** —— 核心逻辑为 Python，`bin/` 下为薄壳启动器。
 - **平台** —— macOS / Linux / Windows（Windows 走 Git Bash）。
+
+## 测试与质量保障
+
+四层测试金字塔：单元/奇偶（L1）→ 结构 + 全会话回放 e2e（L2，均不调模型）→ **真实无头 Claude** 场景套件（L3，每条纪律一个实弹场景）→ 按 [参考来源](#参考来源) 提炼的 17 条原则做 **3 评委 AI 符合性审计**（L4）。
+
+```bash
+python3 -m pytest tests              # L1+L2，免费，CI 在 push main / PR 时全平台跑
+claude plugin validate . --strict    # manifest 严格校验，免费
+bash scripts/dev-e2e.sh full         # L3+L4：6 场景 + 3 评委审计（真实 Claude）
+```
+
+详见 [测试指南](./docs/testing.md)；与 man-in-the-mirror 两个月实践蓝本的诚实对照见 [蓝本对照](./docs/benchmark.md)。
 
 ## 参考来源
 

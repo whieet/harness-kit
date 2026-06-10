@@ -32,6 +32,15 @@ sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "scripts"))  # so `from harness import ...` works in-process
 
 
+def pytest_configure(config):
+    # No pytest.ini/pyproject in this repo — markers are registered here.
+    config.addinivalue_line(
+        "markers",
+        "live: drives a real headless Claude Code instance (needs `claude` CLI + auth; "
+        "opt-in via HARNESS_LIVE_E2E=1; consumes real tokens)",
+    )
+
+
 # A canary file that existed in every pre-port commit; if it's in a commit's
 # tree, the rest of the old bash impl is there too.
 CANARY = "scripts/on-pre-edit.sh"
