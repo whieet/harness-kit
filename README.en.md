@@ -25,6 +25,21 @@ Harness Kit is a **Claude Code plugin** (built for Claude Code — **not codex o
 
 Everything project-specific (verify commands, layering rules, plan directory, doc paths, metrics…) lives in each project's own `.harness/config.json` — the plugin code itself is **project-agnostic**, so the same harness applies to Godot, web, or any custom stack.
 
+## What is harness engineering
+
+A *harness* is **everything around the model** — system prompts, tools, context management, control flow, feedback loops, and memory. **Harness engineering** doesn't touch the model itself; it engineers this scaffolding around the model, molding spiky model intelligence into a reliable, long-running agent.
+
+**Design philosophy** (distilled from public work by OpenAI / Anthropic / LangChain):
+
+- **Leverage is in the harness, not the model** — you can't change the weights, but you can change the scaffolding; architecture choices matter as much as model choice.
+- **Separate planning / generation / evaluation** — don't let one agent both do the work and grade itself; self-grading is unreliable, so use an independent evaluator with concrete, measurable criteria.
+- **Self-verification loop** — explicit plan → build → test → fix forces the model to actually run tests and verify, instead of stopping at "looks right".
+- **Incremental, not one-shot** — on long tasks agents tend to "do it all at once" and declare done prematurely; the harness enforces small steps and end-to-end verification.
+- **Continuity across contexts** — context fills up / gets compacted and the agent "forgets"; progress files, memory, and clean handoffs (git commits, state snapshots) carry state across many context windows.
+- **Detect bad patterns + budget reasoning** — loop detection and pre-completion checklists catch doom-loops; spend the high reasoning budget where it pays most: planning and verification.
+
+> A harness's assumptions go stale as models improve — trim what newer models handle natively. Harness Kit turns this philosophy into ready-to-use, individually toggleable guardrails inside Claude Code (see [Core disciplines](#core-disciplines)).
+
 ## Why you need it
 
 Harness Kit is built to stop the common ways AI coding goes off the rails:
@@ -139,6 +154,16 @@ See [`templates/config.schema.json`](./templates/config.schema.json) for the ful
 - **Claude Code** — this is a Claude Code plugin and relies on its hooks / slash-command / subagent runtime; **not for codex or other CLIs**.
 - **Python 3.9+** — the core logic is Python; `bin/` holds thin launchers.
 - **Platforms** — macOS / Linux / Windows (Windows runs via Git Bash).
+
+## References & further reading
+
+Harness Kit's approach distills and pays homage to the following public work — the "knowledge sources" behind this repo's harness engineering:
+
+- **OpenAI** — [Harness Engineering](https://openai.com/index/harness-engineering/)
+- **Anthropic** — [Harness design for long-running application development](https://www.anthropic.com/engineering/harness-design-long-running-apps)
+- **Anthropic** — [Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)
+- **LangChain** — [The anatomy of an agent harness](https://www.langchain.com/blog/the-anatomy-of-an-agent-harness)
+- **LangChain** — [Improving deep agents with harness engineering](https://www.langchain.com/blog/improving-deep-agents-with-harness-engineering)
 
 ## License
 

@@ -23,6 +23,21 @@ Harness Kit 是一个 **Claude Code 插件**（专为 Claude Code 设计，**不
 
 所有与具体项目相关的东西（验证命令、分层规则、计划目录、文档路径、指标……）都集中在每个项目自己的 `.harness/config.json` 里——插件代码本身**项目无关**，因此同一套 harness 能套用到 Godot、Web 或任意自定义技术栈。
 
+## 什么是 harness engineering
+
+*Harness*（挽具）指**模型之外的一切**——系统提示、工具、上下文管理、控制流、反馈循环与记忆。**Harness engineering** 不去改模型本身，而是工程化模型周围的这套「脚手架」，把参差不齐的模型能力，塑形成可靠、能长跑的 agent。
+
+**设计哲学**（综合 OpenAI / Anthropic / LangChain 的公开实践）：
+
+- **杠杆在 harness，不在模型** —— 模型权重你改不了，但它周围的脚手架可以；架构选择与模型选择同等重要。
+- **计划 / 生成 / 评估分离** —— 别让同一个 agent 既干活又给自己打分；自评不可靠，要用独立评估者 + 具体可度量的标准。
+- **自我验证循环** —— 显式 plan → build → test → fix，逼模型真去跑测试、验证，而不是停在「看起来对」。
+- **增量而非一把梭** —— 长任务里 agent 爱「一次做完」并过早宣布完成；harness 强制小步推进、端到端验证。
+- **跨上下文的连续性** —— 上下文会被填满 / 压缩而「失忆」；用进度文件、记忆与干净交接（git 提交、状态快照）跨多个上下文窗口续上状态。
+- **检测坏模式 + 推理预算** —— 用循环检测、完成前检查清单拦住「打转」；把高推理预算优先花在计划与验证这两个收益最大的环节。
+
+> harness 里的假设会随模型变强而过时——新模型能原生处理的就该精简掉。Harness Kit 正是把上述哲学，落成 Claude Code 里可直接用、可逐项开关的护栏（见 [核心纪律](#核心纪律)）。
+
 ## 为什么需要它
 
 AI 编码常见的几个失控点，正是 Harness Kit 要拦住的：
@@ -137,6 +152,16 @@ flowchart LR
 - **Claude Code** —— 本工具是 Claude Code 插件，依赖其 hooks / 斜杠命令 / 子代理运行时；**不适用于 codex 等其它 CLI**。
 - **Python 3.9+** —— 核心逻辑为 Python，`bin/` 下为薄壳启动器。
 - **平台** —— macOS / Linux / Windows（Windows 走 Git Bash）。
+
+## 参考来源
+
+Harness Kit 的思路综合并致敬以下公开实践（也是本仓库 harness engineering 的「记忆来源」）：
+
+- **OpenAI** —— [Harness Engineering](https://openai.com/zh-Hans-CN/index/harness-engineering/)
+- **Anthropic** —— [Harness design for long-running application development](https://www.anthropic.com/engineering/harness-design-long-running-apps)
+- **Anthropic** —— [Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)
+- **LangChain** —— [The anatomy of an agent harness](https://www.langchain.com/blog/the-anatomy-of-an-agent-harness)
+- **LangChain** —— [Improving deep agents with harness engineering](https://www.langchain.com/blog/improving-deep-agents-with-harness-engineering)
 
 ## 许可证
 
