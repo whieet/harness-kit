@@ -18,6 +18,7 @@ CUSTOM_CONFIG = """\
   "projectType": "custom",
   "verificationMode": "strict",
   "gates": [
+    { "name": "claude-md-budget", "command": "test ! -f CLAUDE.md || test \\"$(wc -l < CLAUDE.md)\\" -le 200 || { echo 'CLAUDE.md exceeds 200 lines — move detail into docs/'; exit 1; }", "blocking": false },
     { "name": "doc-links", "command": "harness-doc-links", "blocking": true },
     { "name": "plan-dod", "command": "harness-check-plan-dod", "blocking": true }
   ],
@@ -107,6 +108,36 @@ def _scaffold_plan_dirs(ctx: HarnessContext, tpl_root: str) -> None:
     print(f"  plan dirs: {plan_dir}/{{active,completed}}")
 
 
+# Mirrors the per-preset claude-md-budget gate thresholds (templates/*/config.json).
+_CLAUDE_MD_BUDGETS = {"godot": "120", "web": "200", "custom": "200"}
+
+
+def _write_claude_md(ctx: HarnessContext, ttype: str, lang: str, enabled: bool, tpl_root: str) -> None:
+    if not enabled:
+        print("  CLAUDE.md skipped (--no-claude-md)")
+        return
+    dst = os.path.join(ctx.project_dir, "CLAUDE.md")
+    nested = os.path.join(ctx.project_dir, ".claude", "CLAUDE.md")
+    if os.path.isfile(dst) or os.path.isfile(nested):
+        print("  CLAUDE.md exists — keeping (user-owned; not affected by --force)")
+        return
+    src = os.path.join(tpl_root, f"claude-md-template.{lang}.md")
+    if not os.path.isfile(src):
+        print("  WARN: template missing: %s" % src)
+        return
+    tpl = util.safe_read(src)
+    has_agents_md = os.path.isfile(os.path.join(ctx.project_dir, "AGENTS.md"))
+    for k, v in (
+        ("PLAN_DIR", ctx.cfg_get_str("plan.dir", "docs/plans")),
+        ("PROJECT_TYPE", ttype),
+        ("LINE_BUDGET", _CLAUDE_MD_BUDGETS.get(ttype, "200")),
+        ("IMPORTS", "@AGENTS.md\n\n" if has_agents_md else ""),
+    ):
+        tpl = tpl.replace("{{%s}}" % k, v)
+    util.write_text(dst, tpl)
+    print("  wrote CLAUDE.md (harness constitution — fill in the project-specific sections)")
+
+
 def _write_state_gitignore(ctx: HarnessContext) -> None:
     util.write_text(os.path.join(ctx.harness_dir, ".gitignore"), "state/\n")
 
@@ -133,16 +164,34 @@ def _write_precommit(ctx: HarnessContext) -> None:
 
 def run(argv: list[str]) -> int:
     force = False
+    claude_md = True
+    lang = "en"
     ttype: str | None = None
-    for a in argv:
+    i = 0
+    while i < len(argv):
+        a = argv[i]
         if a == "--force":
             force = True
+        elif a == "--no-claude-md":
+            claude_md = False
+        elif a == "--lang":
+            if i + 1 >= len(argv):
+                print("harness-init: --lang requires a value (en|zh)")
+                return 2
+            i += 1
+            lang = argv[i]
+        elif a.startswith("--lang="):
+            lang = a.split("=", 1)[1]
         elif a in ("godot", "web", "custom"):
             ttype = a
         else:
             # bash impl emits these to stdout; keep parity so log scrapers work.
             print(f"harness-init: unknown arg '{a}'")
             return 2
+        i += 1
+    if lang not in ("en", "zh"):
+        print(f"harness-init: unsupported --lang '{lang}' (expected en|zh)")
+        return 2
 
     ctx = load_context("")
     project = ctx.project_dir
@@ -166,6 +215,7 @@ def run(argv: list[str]) -> int:
     _write_config(ctx, ttype, force, tpl_root)
     _write_rubric(ctx, ttype, force, tpl_root)
     _scaffold_plan_dirs(ctx, tpl_root)
+    _write_claude_md(ctx, ttype, lang, claude_md, tpl_root)
     _write_state_gitignore(ctx)
     _write_precommit(ctx)
     print(f"  ✓ harness-kit initialized ({ttype}). Next: /harness-kit:verify")

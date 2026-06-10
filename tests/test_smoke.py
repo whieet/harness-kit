@@ -370,6 +370,95 @@ def test_init_custom(tmp_path):
     assert (proj / ".harness" / "config.json").exists()
     assert (proj / "docs" / "plans" / "active" / ".gitkeep").exists()
     assert (proj / ".harness" / "hooks" / "pre-commit").exists()
+    assert (proj / "CLAUDE.md").exists()
+
+
+def _fresh_proj(tmp_path):
+    proj = tmp_path / "p"
+    proj.mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", "-b", "main", str(proj)], check=True)
+    for k, v in (("user.email", "t@t"), ("user.name", "t")):
+        subprocess.run(["git", "-C", str(proj), "config", k, v], check=True)
+    return proj
+
+
+def test_init_writes_claude_md(tmp_path):
+    proj = _fresh_proj(tmp_path)
+    r = run_dispatch("harness-init", proj, extra_args=["custom"])
+    assert r.returncode == 0, r.stderr
+    assert "wrote CLAUDE.md" in r.stdout
+    body = (proj / "CLAUDE.md").read_text(encoding="utf-8")
+    assert "docs/plans" in body  # {{PLAN_DIR}} substituted from the custom preset
+    assert "harness-kit:claude-md" in body  # version marker
+    assert "{{" not in body  # no leftover placeholders
+    assert len(body.splitlines()) <= 120  # fits even the strictest (godot) budget
+
+
+def test_init_keeps_existing_claude_md(tmp_path):
+    proj = _fresh_proj(tmp_path)
+    (proj / "CLAUDE.md").write_text("# mine\n", encoding="utf-8")
+    for args in (["custom"], ["custom", "--force"]):
+        r = run_dispatch("harness-init", proj, extra_args=args)
+        assert r.returncode == 0, r.stderr
+        assert "CLAUDE.md exists — keeping" in r.stdout
+        assert (proj / "CLAUDE.md").read_text(encoding="utf-8") == "# mine\n"
+
+
+def test_init_no_claude_md_flag(tmp_path):
+    proj = _fresh_proj(tmp_path)
+    r = run_dispatch("harness-init", proj, extra_args=["custom", "--no-claude-md"])
+    assert r.returncode == 0, r.stderr
+    assert "CLAUDE.md skipped" in r.stdout
+    assert not (proj / "CLAUDE.md").exists()
+
+
+def test_init_lang_zh(tmp_path):
+    proj = _fresh_proj(tmp_path)
+    r = run_dispatch("harness-init", proj, extra_args=["custom", "--lang", "zh"])
+    assert r.returncode == 0, r.stderr
+    body = (proj / "CLAUDE.md").read_text(encoding="utf-8")
+    assert "项目章程" in body
+    assert "harness-kit:claude-md" in body
+    assert "{{" not in body
+
+
+def test_init_lang_invalid(tmp_path):
+    proj = _fresh_proj(tmp_path)
+    r = run_dispatch("harness-init", proj, extra_args=["custom", "--lang", "fr"])
+    assert r.returncode == 2
+    assert "unsupported --lang" in r.stdout
+
+
+def test_init_respects_dot_claude_dir(tmp_path):
+    proj = _fresh_proj(tmp_path)
+    (proj / ".claude").mkdir()
+    (proj / ".claude" / "CLAUDE.md").write_text("# nested\n", encoding="utf-8")
+    r = run_dispatch("harness-init", proj, extra_args=["custom"])
+    assert r.returncode == 0, r.stderr
+    assert "CLAUDE.md exists — keeping" in r.stdout
+    assert not (proj / "CLAUDE.md").exists()
+
+
+def test_init_imports_agents_md(tmp_path):
+    proj = _fresh_proj(tmp_path)
+    (proj / "AGENTS.md").write_text("# agents\n", encoding="utf-8")
+    r = run_dispatch("harness-init", proj, extra_args=["custom"])
+    assert r.returncode == 0, r.stderr
+    body = (proj / "CLAUDE.md").read_text(encoding="utf-8")
+    assert body.splitlines()[0] == "@AGENTS.md"
+
+
+def test_init_godot_claude_md_gate_passes(tmp_path):
+    """claude-md-budget must pass on a fresh godot project — with the scaffolded
+    CLAUDE.md, and (regression: missing-file tolerance) without one."""
+    for extra in ([], ["--no-claude-md"]):
+        proj = _fresh_proj(tmp_path / ("with" if not extra else "without"))
+        (proj / "project.godot").write_text("[application]\n", encoding="utf-8")
+        r = run_dispatch("harness-init", proj, extra_args=["godot"] + extra)
+        assert r.returncode == 0, r.stderr
+        v = run_dispatch("harness-verify", proj)
+        assert "[ok]   claude-md-budget" in v.stdout, v.stdout
+        assert "[FAIL] claude-md-budget" not in v.stdout
 
 
 # --- pure unit tests on small Python helpers ---------------------------------

@@ -1,7 +1,7 @@
 {
   "name": "harness-kit",
   "displayName": "Harness Kit",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Project-agnostic harness engineering for Claude Code: session handoff, plan-gating, pre-completion verification gates, loop detection, and maturity-phase routing — all driven by a per-project .harness/config.json. Init into godot or web presets.",
   "author": { "name": "River", "email": "riyazulfd@gmail.com" },
   "homepage": "https://github.com/whieet/harness-kit",

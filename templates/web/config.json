@@ -4,7 +4,7 @@
   "buildCmd": "npm run build",
   "testCmd": "npm test --silent -- --run",
   "gates": [
-    { "name": "readme-budget", "command": "test ! -f CLAUDE.md || test \"$(wc -l < CLAUDE.md)\" -le 200 || { echo 'CLAUDE.md exceeds 200 lines — move detail into docs/'; exit 1; }", "blocking": false, "tier": "fast" },
+    { "name": "claude-md-budget", "command": "test ! -f CLAUDE.md || test \"$(wc -l < CLAUDE.md)\" -le 200 || { echo 'CLAUDE.md exceeds 200 lines — move detail into docs/'; exit 1; }", "blocking": false, "tier": "fast" },
     { "name": "eslint", "command": "if [ -f package.json ] && npx --no-install eslint --version >/dev/null 2>&1; then npx --no-install eslint . ; else echo 'skip: eslint not installed'; fi", "blocking": true, "tier": "fast" },
     { "name": "typecheck", "command": "if [ -f tsconfig.json ] && npx --no-install tsc --version >/dev/null 2>&1; then npx --no-install tsc --noEmit ; else echo 'skip: tsc not configured'; fi", "blocking": true, "tier": "full" },
     { "name": "layering", "command": "harness-check-layering", "blocking": true, "tier": "fast" },

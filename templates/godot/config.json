@@ -4,7 +4,7 @@
   "buildCmd": "godot --headless --quit --path .",
   "testCmd": "",
   "gates": [
-    { "name": "claude-md-budget", "command": "test \"$(wc -l < CLAUDE.md)\" -le 120 || { echo 'CLAUDE.md exceeds 120 lines — move detail into docs/'; exit 1; }", "blocking": true, "tier": "fast" },
+    { "name": "claude-md-budget", "command": "test ! -f CLAUDE.md || test \"$(wc -l < CLAUDE.md)\" -le 120 || { echo 'CLAUDE.md exceeds 120 lines — move detail into docs/'; exit 1; }", "blocking": true, "tier": "fast" },
     { "name": "layering", "command": "harness-check-layering", "blocking": true, "tier": "fast" },
     { "name": "doc-links", "command": "harness-doc-links", "blocking": true, "tier": "fast" },
     { "name": "godot-compile", "command": "if grep -qE '^main_scene=' project.godot 2>/dev/null && command -v godot >/dev/null 2>&1; then godot --headless --quit --path . 2>&1 | tail -20; else echo 'skip: no main_scene or godot CLI'; fi", "blocking": true, "skipWhenProcess": "Godot", "tier": "full" },
