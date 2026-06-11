@@ -17,7 +17,7 @@ def run(argv: list[str]) -> int:
         return 0
 
     plan = ctx.config.get("plan") or {}
-    plan_dir = plan.get("dir", "docs/exec-plans")
+    plan_dir = plan.get("dir", "docs/plans")
     status_field = plan.get("statusField", "status")
     completed_val = plan.get("completedValue", "completed")
     try:

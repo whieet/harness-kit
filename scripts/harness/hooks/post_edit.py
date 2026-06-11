@@ -1,6 +1,6 @@
 """PostToolUse(Edit|Write|MultiEdit) — per-file loop detection.
 
-Port of scripts/on-post-edit.sh. Tracks how many times each file is touched
+Tracks how many times each file is touched
 per session and emits a nudge once any file crosses the threshold. Nudge is
 delivered via stderr + exit 2 (PostToolUse: non-blocking, stderr fed to Claude).
 """

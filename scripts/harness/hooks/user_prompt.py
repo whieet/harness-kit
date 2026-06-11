@@ -1,6 +1,6 @@
 """UserPromptSubmit — re-inject harness state once after a compaction.
 
-Port of scripts/on-user-prompt.sh. PreCompact wrote a snapshot + a `dirty`
+PreCompact wrote a snapshot + a `dirty`
 marker; if the marker exists, emit one additionalContext block and clear the
 marker so it injects exactly once. Gated by capability `contextSnapshot`.
 """
@@ -57,7 +57,7 @@ def run() -> int:
     text = _build_context(ctx)
 
     # Clear the marker BEFORE emitting so a crash after this point still
-    # progresses (same trade-off the old bash made: rm before the python emit).
+    # progresses (rm before emit, not after).
     try:
         os.remove(dirty)
     except OSError:

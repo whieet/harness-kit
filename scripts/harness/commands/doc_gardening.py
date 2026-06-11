@@ -26,7 +26,7 @@ def run(argv: list[str]) -> int:
     docs = cfg.get("docs") or {}
     issues: list[tuple[str, str]] = []
 
-    plan_dir = plan.get("dir", "docs/exec-plans")
+    plan_dir = plan.get("dir", "docs/plans")
     completed_dir = os.path.join(plan_dir, "completed")
 
     # 1. completed-plan status consistency

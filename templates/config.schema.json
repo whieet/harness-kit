@@ -58,7 +58,7 @@
       "type": "object",
       "description": "Plan lifecycle convention. Drives the plan gate (auto-scaffold a plan before editing covered code), plan archival on approval, the plan-DoD gate, and advisor counts.",
       "properties": {
-        "dir": { "type": "string", "default": "docs/exec-plans", "description": "Plan root; active/ and completed/ live under it.", "examples": ["docs/exec-plans", "docs/plans"] },
+        "dir": { "type": "string", "default": "docs/plans", "description": "Plan root; active/ and completed/ live under it.", "examples": ["docs/plans", "docs/specs"] },
         "codeGlob": { "type": "string", "description": "Regex of file paths whose edits require a covering plan. Empty string disables the plan gate.", "examples": ["\\.(ts|tsx)$", "\\.(gd|tscn)$"] },
         "template": { "type": "string", "description": "Path to the plan scaffold template (relative to plugin templates or the project). Defaults to the bundled plan-template.md." },
         "statusField": { "type": "string", "default": "status", "description": "Field label parsed from a plan's frontmatter/header to read its lifecycle status.", "examples": ["status", "状态"] },
@@ -97,7 +97,7 @@
         "required": ["name", "glob"],
         "properties": {
           "name": { "type": "string", "description": "Metric identifier shown on the advisor dashboard.", "examples": ["completed", "components"] },
-          "glob": { "type": "string", "description": "Glob whose match count is the metric value.", "examples": ["docs/exec-plans/completed/*.md", "src/components/**/*.{ts,tsx}"] },
+          "glob": { "type": "string", "description": "Glob whose match count is the metric value.", "examples": ["docs/plans/completed/*.md", "src/components/**/*.{ts,tsx}"] },
           "exclude": { "type": "string", "description": "Optional regex; matching files are excluded from the count.", "examples": ["gitkeep", "_template.md"] }
         }
       }

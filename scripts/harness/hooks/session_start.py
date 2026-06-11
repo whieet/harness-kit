@@ -1,6 +1,6 @@
 """SessionStart — inject a session handoff as additionalContext.
 
-Port of scripts/on-session-start.sh. Composes: git state + active plans +
+Composes: git state + active plans +
 harness-advisor dashboard + config-driven key-docs + a generic checklist.
 Also clears the pre-compact dirty marker (session start supersedes the
 mid-session re-inject) and appends a session_start trace event.
@@ -15,8 +15,7 @@ from ..context import HarnessContext, chdir_project, exit_unless_initialized, lo
 
 
 def _resume_block(ctx: HarnessContext) -> str:
-    """Surface unfinished work from a pre-compaction snapshot (parity with the
-    inline python in on-session-start.sh lines 57-69)."""
+    """Surface unfinished work from a pre-compaction snapshot."""
     if not ctx.cap_enabled("contextSnapshot"):
         return ""
     snap_path = os.path.join(ctx.state_dir(), "pre-compact-snapshot.json")
@@ -72,7 +71,7 @@ def run() -> int:
     exit_unless_initialized(ctx)
     chdir_project(ctx)
 
-    plan_dir = ctx.cfg_get_str("plan.dir", "docs/exec-plans")
+    plan_dir = ctx.cfg_get_str("plan.dir", "docs/plans")
     active_dir = os.path.join(plan_dir, "active")
 
     branch = gitutil.branch()
@@ -122,9 +121,8 @@ def run() -> int:
     except OSError:
         pass
 
-    # Match bash parity: the bash impl built the context via `echo ... >> $CTX_FILE`
-    # which left a trailing newline, then `open(sys.argv[1]).read()` preserved it.
-    # Without this, additionalContext loses one trailing newline vs the old impl.
+    # Emit with a trailing newline so additionalContext ends cleanly (some
+    # consumers expect the injected block to be newline-terminated).
     util.emit_hook_context("SessionStart", "\n".join(parts) + "\n")
     util.append_trace(ctx.state_dir(), {"event": "session_start"})
     return 0

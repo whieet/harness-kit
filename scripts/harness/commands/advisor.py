@@ -1,6 +1,6 @@
 """harness-advisor — passive harness dashboard.
 
-Port of bin/harness-advisor. The old maturity-phase auto-router is gone;
+The old maturity-phase auto-router is gone;
 this just shows metric counts, capability switches, configured gates, and
 trace-driven suggestions.
 """
@@ -112,9 +112,9 @@ def render(ctx: HarnessContext) -> str:
 
 
 def run(argv: list[str]) -> int:
-    """CLI entry. Always emits the dashboard — even with no .harness/config.json,
-    matching the bash impl, which printed the header + default capability row
-    on uninitialized projects (handy as a status probe in scripts/CI)."""
+    """CLI entry. Always emits the dashboard — even with no .harness/config.json
+    it prints the header + default capability row on uninitialized projects
+    (handy as a status probe in scripts/CI)."""
     ctx = load_context("")
     try:
         os.chdir(ctx.project_dir)

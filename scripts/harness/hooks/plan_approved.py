@@ -1,6 +1,6 @@
 """PostToolUse(ExitPlanMode) — persist the approved plan to disk.
 
-Port of scripts/on-plan-approved.sh. Captures tool_input.plan or
+Captures tool_input.plan or
 tool_response.result into the configured plan directory with metadata
 and a DoD stub. Prints the path to stderr (non-blocking notice).
 """
@@ -17,9 +17,9 @@ from ..context import HarnessContext, chdir_project, exit_unless_initialized, lo
 def _extract_plan(payload: dict) -> str:
     """Try tool_input.plan first, then tool_response.result (both are documented).
 
-    Returns the raw plan text (not stripped) — the bash impl persisted the
-    plan verbatim into the saved file body, only checking `.strip()` for the
-    empty-guard. Stripping here would silently rewrite the saved markdown.
+    Returns the raw plan text (not stripped) — the plan is persisted verbatim
+    into the saved file body; `.strip()` is only used for the empty-guard.
+    Stripping here would silently rewrite the saved markdown.
 
     Defensive: tool_input or tool_response may be a non-dict (e.g. malformed
     payload, plain string). Treat any non-dict as missing.
@@ -52,7 +52,7 @@ def run() -> int:
     if not plan:
         return 0
 
-    plan_dir = ctx.cfg_get_str("plan.dir", "docs/exec-plans")
+    plan_dir = ctx.cfg_get_str("plan.dir", "docs/plans")
     status_field = ctx.cfg_get_str("plan.statusField", "status")
     active_dir = os.path.join(plan_dir, "active")
     os.makedirs(active_dir, exist_ok=True)

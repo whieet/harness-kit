@@ -66,8 +66,7 @@ def run(argv: list[str]) -> int:
             target = m.group(1)  # raw — bash's sed extraction did not strip
             if not target:
                 continue
-            # URL skip: case-sensitive prefix match, matching the bash
-            # `case ... in http*|"#"*|"mailto:"*)` glob.
+            # Skip external / anchor / mailto targets (case-sensitive prefix).
             if (
                 target.startswith("http")
                 or target.startswith("#")

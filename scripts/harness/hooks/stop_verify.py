@@ -1,6 +1,6 @@
 """Stop — pre-completion verification gate (the "Ralph Loop").
 
-Port of scripts/on-stop-verify.sh. Runs harness-verify + uncommitted check +
+Runs harness-verify + uncommitted check +
 active-plan DoD self-check + (optional) evaluator guidance. In verificationMode
 == "strict", a failure exits 2 to BLOCK the agent from ending its turn.
 
@@ -25,7 +25,7 @@ def _emit(s: str = "") -> None:
 
 
 def _uncommitted_block() -> tuple[str, str, str]:
-    """Returns (changed_head_20, staged_head_20, untracked_head_10) — first lines like the bash."""
+    """Returns (changed_head_20, staged_head_20, untracked_head_10) — first lines of each."""
     def head(text: str, n: int) -> str:
         if not text:
             return ""
@@ -111,7 +111,7 @@ def run() -> int:
     mode = ctx.cfg_get_str(
         "verificationMode", os.environ.get("CLAUDE_PLUGIN_OPTION_VERIFICATION_MODE", "strict")
     )
-    plan_dir = ctx.cfg_get_str("plan.dir", "docs/exec-plans")
+    plan_dir = ctx.cfg_get_str("plan.dir", "docs/plans")
     fail = 0
 
     _emit("=== harness-kit: pre-completion gate ===")

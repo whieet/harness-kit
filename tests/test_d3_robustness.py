@@ -115,7 +115,7 @@ def test_plan_with_unicode_title(tmp_path):
 
 
 def test_config_with_unicode_status_field(tmp_path):
-    """A Chinese statusField (the godot template ships with '状态') must work."""
+    """A non-ASCII statusField (e.g. a CJK label) must work."""
     proj = _mkrepo(tmp_path)
     _harness_init(proj, plan={
         "dir": "docs/plans",

@@ -14,23 +14,22 @@
   "layeringRules": [
     { "scope": "scripts/domain/**/*.gd", "forbidden": "^extends (Node|Node2D|CanvasItem|Control)", "message": "domain/ must be pure data/rules, not a Node" },
     { "scope": "scripts/domain/**/*.gd", "forbidden": "preload\\(\"res://scenes/", "message": "domain/ must not preload scenes" },
-    { "scope": "scripts/ui/**/*.gd", "forbidden": "preload\\(\"res://scripts/gameplay/", "message": "ui must not reverse-reference gameplay; route via EventBus/autoload" },
-    { "scope": "scripts/gameplay/**/*.gd", "forbidden": "preload\\(\"res://scripts/ui/", "message": "gameplay must not depend on ui; route via EventBus/autoload" }
+    { "scope": "scripts/ui/**/*.gd", "forbidden": "preload\\(\"res://scripts/gameplay/", "message": "ui must not reverse-reference gameplay; route via an event bus / autoload" },
+    { "scope": "scripts/gameplay/**/*.gd", "forbidden": "preload\\(\"res://scripts/ui/", "message": "gameplay must not depend on ui; route via an event bus / autoload" }
   ],
   "plan": {
-    "dir": "docs/exec-plans",
+    "dir": "docs/plans",
     "codeGlob": "\\.(gd|tscn)$",
-    "statusField": "状态",
+    "statusField": "status",
     "completedValue": "completed",
     "checklistRegex": "^- \\[ \\]",
-    "requiredFields": ["状态", "创建", "步骤", "完成判据"]
+    "requiredFields": ["status", "created", "Definition of Done"]
   },
   "docs": {
     "keyDocs": [
-      { "path": "docs/DESIGN.md", "note": "visual/UX spec — read before UI work" },
-      { "path": "docs/RELIABILITY.md", "note": "perf/stability merge gates" },
-      { "path": "docs/SECURITY.md", "note": "save paths + resource whitelist + network boundary" },
-      { "path": "docs/references/harness-engineering.md", "note": "harness theory + mapping" }
+      { "path": "README.md", "note": "project overview" },
+      { "path": "ARCHITECTURE.md", "note": "layering rules / module boundaries" },
+      { "path": "docs/DESIGN.md", "note": "visual/UX spec — read before UI work" }
     ],
     "scanRoots": ["docs"],
     "architecturePath": "ARCHITECTURE.md",
@@ -44,13 +43,10 @@
   },
   "metrics": [
     { "name": "doc_count", "glob": "docs/**/*.md" },
-    { "name": "completed", "glob": "docs/exec-plans/completed/*.md", "exclude": "gitkeep" },
-    { "name": "active", "glob": "docs/exec-plans/active/*.md", "exclude": "gitkeep" },
+    { "name": "completed", "glob": "docs/plans/completed/*.md", "exclude": "gitkeep" },
+    { "name": "active", "glob": "docs/plans/active/*.md", "exclude": "gitkeep" },
     { "name": "gameplay", "glob": "scripts/gameplay/**/*.gd" },
-    { "name": "ui", "glob": "scripts/ui/**/*.gd" },
-    { "name": "golden", "glob": "tests/golden/*", "exclude": "gitkeep" },
-    { "name": "product_specs", "glob": "docs/product-specs/*.md", "exclude": "(_template|index)" },
-    { "name": "design_decisions", "glob": "docs/design-docs/*.md", "exclude": "(template|index)" }
+    { "name": "ui", "glob": "scripts/ui/**/*.gd" }
   ],
   "enabledCapabilities": {
     "planGate": true,
@@ -68,9 +64,9 @@
     "mode": "advisory"
   },
   "verificationRecipe": {
-    "functionality": "mcp__godot-mcp-pro__play_scene then mcp__godot-mcp-pro__get_editor_errors",
-    "visual": "mcp__godot-mcp-pro__get_game_screenshot (and compare_screenshots vs tests/golden)",
-    "integration": "mcp__godot-mcp-pro__assert_node_state / watch_signals on AppRegistry/EventBus",
+    "functionality": "your Godot MCP server's play/run-scene tool, then its editor-errors tool (check for runtime/script errors)",
+    "visual": "your Godot MCP server's screenshot tool (and screenshot diffing vs a baseline dir, if you keep one)",
+    "integration": "your Godot MCP server's node/signal assertions on your autoloads (event bus / registry pattern)",
     "quality": "harness-verify (layering + headless compile)"
   }
 }

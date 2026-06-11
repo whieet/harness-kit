@@ -1,6 +1,6 @@
 """harness-init — deterministic scaffolder for .harness/config.json + skeleton.
 
-Port of bin/harness-init. Cross-platform: writes the git pre-commit hook with
+Cross-platform: writes the git pre-commit hook with
 a forward-slash $BIN_DIR fallback (the in-repo hook is a bash script — Git on
 Windows ships bash and uses it to run repo hooks too).
 """
@@ -185,7 +185,7 @@ def run(argv: list[str]) -> int:
         elif a in ("godot", "web", "custom"):
             ttype = a
         else:
-            # bash impl emits these to stdout; keep parity so log scrapers work.
+            # Emit to stdout so log scrapers can pick up unknown-arg notices.
             print(f"harness-init: unknown arg '{a}'")
             return 2
         i += 1

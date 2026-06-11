@@ -83,7 +83,7 @@ def run() -> int:
     chdir_project(ctx)
 
     state = ctx.state_dir()
-    plan_dir = ctx.cfg_get_str("plan.dir", "docs/exec-plans")
+    plan_dir = ctx.cfg_get_str("plan.dir", "docs/plans")
     active_dir = os.path.join(plan_dir, "active")
 
     plans = _scan_active_plans(active_dir)

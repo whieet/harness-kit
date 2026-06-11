@@ -8,7 +8,7 @@ Verifying harness-kit does not rely on "make a directory → open Claude → ins
 
 | Layer | What | Calls Claude? | When |
 | --- | --- | --- | --- |
-| **L1 unit/parity** | smoke, parity (frozen bash oracle), d-suites (determinism / robustness / parity fuzz / concurrency) | No | push to main / PRs (CI: 3 OS × 2 Python matrix) |
+| **L1 unit** | smoke, d-suites (determinism / robustness / concurrency) | No | push to main / PRs (CI: 3 OS × 2 Python matrix) |
 | **L2 structure + session replay** | `test_structure.py` (cross-file invariants) + `test_e2e_session.py` (S1–S7: replays hook sequences in real-session order, asserting trace/plan/snapshot state evolution) | No | push to main / PRs |
 | **L3 live scenario suite** | `scripts/dev-e2e.sh`: a real headless Claude (plugin loaded via `--plugin-dir`) runs SC-1..SC-6 — one live scenario per core discipline | **Yes** | locally on demand; CI: push to main + daily + dispatch |
 | **L4 conformance audit** | 3 independent AI judges score [`tests/e2e_workflow_rubric.md`](../tests/e2e_workflow_rubric.md) row-by-row with majority vote, verifying conformance to the official harness-engineering principles | **Yes** | with L3 full |
@@ -28,12 +28,11 @@ Run every command from the **repo root** (pytest relies on the `tests` package i
 | What | macOS / Linux | Windows |
 | --- | --- | --- |
 | L1 smoke + d1/d3/d9 | ✅ | ✅ (CI matrix includes `windows-latest`, via Git Bash) |
-| L1 parity family (parity / parity_extra / d7) | ✅ (needs the old bash impl in git history; auto-skips on shallow clones) | ⛔ **auto-skipped** — the oracle needs a Unix toolchain; `skipif` skips cleanly, no errors |
 | L2 structure + session replay | ✅ | ✅ (included in the CI Windows job step) |
 | manifest validation | ✅ | ✅ |
 | L3/L4 live (dev-e2e.sh) | ✅ (verified by real runs) | ⚠️ should work: run inside **Git Bash** (the same way the plugin itself supports Windows); the interpreter is probed as `python3 → python → py -3` (override with `HARNESS_PY`); **not yet live-verified on Windows** |
 
-CI split: the Windows job runs smoke + structure + replay; the ubuntu job runs the full deterministic suite (incl. d-suites) and the live e2e; the macOS job covers parity. Locally on Windows, a manual `python -m pytest tests` runs everything (parity auto-skips).
+CI split: the Windows / macOS jobs run smoke + structure + replay; the ubuntu job runs the full deterministic suite (incl. d-suites) and the live e2e. Locally `python -m pytest tests` runs everything on any platform.
 
 ## How to run
 

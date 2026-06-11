@@ -5,20 +5,20 @@ what the code claims). **Any dimension < 3 = FAIL.** Use the `verificationRecipe
 in `.harness/config.json` to gather evidence — run the MCP tools, read full output.
 
 ## 1. Functionality (hard gate)
-- `play_scene`: the affected scene starts without crashing.
-- `get_editor_errors`: no runtime/script errors.
-- The changed behavior actually works as the plan specifies (drive it via input simulation / `execute_game_script`).
+- Run the affected scene via your Godot MCP server: it starts without crashing.
+- No runtime/script errors (check the editor-errors tool).
+- The changed behavior actually works as the plan specifies (drive it via input simulation / script execution).
 - 5 = all paths incl. empty/error states verified; 3 = happy path verified; 1 = crashes or no evidence.
 
 ## 2. Visual / UX
-- `get_game_screenshot`: layout is complete and not broken.
-- `compare_screenshots` vs `tests/golden/`: no unintended regression.
-- New elements match the existing visual language (see `docs/DESIGN.md`).
+- Screenshot the affected scene: layout is complete and not broken.
+- Diff against a screenshot baseline (if you keep one): no unintended regression.
+- New elements match the existing visual language (see your design doc, e.g. `docs/DESIGN.md`).
 - 5 = pixel-consistent + on-spec; 3 = acceptable, minor polish debt; 1 = visibly broken.
 
 ## 3. Integration
-- Existing features still work (desktop / taskbar / chat / file manager as applicable).
-- `AppRegistry` / `EventBus` signals wired correctly (`assert_node_state` / `watch_signals`).
+- Your app's existing features and flows still work.
+- Your autoloads' signals are wired correctly (event bus / registry pattern — verify via node-state / signal assertions).
 - 5 = no regressions, signals verified; 3 = no obvious regression; 1 = breaks existing flows.
 
 ## 4. Code quality

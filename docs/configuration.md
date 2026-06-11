@@ -62,7 +62,7 @@
   ],
 
   "plan": {
-    "dir": "docs/exec-plans",            // 计划根，下设 active/ 与 completed/。默认 docs/exec-plans
+    "dir": "docs/plans",            // 计划根，下设 active/ 与 completed/。默认 docs/plans
     "codeGlob": "\\.(ts|tsx)$",          // 哪些文件改动需先有计划（正则）。空字符串=关闭计划门
     "statusField": "status",             // 计划头里表示状态的字段名。默认 status
     "completedValue": "completed",       // 表示「已完成」的状态值。默认 completed
@@ -85,7 +85,7 @@
   },
 
   "metrics": [                           // advisor 仪表盘：按 glob 数文件
-    { "name": "completed",  "glob": "docs/exec-plans/completed/*.md", "exclude": "gitkeep" },
+    { "name": "completed",  "glob": "docs/plans/completed/*.md", "exclude": "gitkeep" },
     { "name": "components", "glob": "src/components/**/*.{ts,tsx}" }
   ],
 
@@ -150,7 +150,7 @@
 ### `plan` — 计划生命周期
 | 子字段 | 类型 | 默认 | 作用 |
 | --- | --- | --- | --- |
-| `dir` | string | `docs/exec-plans` | 计划根目录，下设 `active/`、`completed/` |
+| `dir` | string | `docs/plans` | 计划根目录，下设 `active/`、`completed/` |
 | `codeGlob` | regex | — | 哪些文件路径的改动需要先有覆盖计划。**空字符串 = 关闭计划门** |
 | `template` | string | 内置 `plan-template.md` | 计划脚手架模板路径 |
 | `statusField` | string | `status` | 从计划头解析状态用的字段名 |

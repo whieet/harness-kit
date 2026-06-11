@@ -1,8 +1,7 @@
 """Shared test fixtures and helpers.
 
 Tests build a fresh fixture project in a tmpdir (git-init'd, with a config),
-then drive either the old bash scripts or the new Python via env-controlled
-helpers so the same test asserts both implementations agree.
+then drive the dispatcher / bin launchers via these env-controlled helpers.
 """
 from __future__ import annotations
 

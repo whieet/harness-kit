@@ -1,8 +1,8 @@
 """harness-verify — config-driven verification gate orchestrator.
 
-Port of bin/harness-verify. Iterates over config.gates[], runs each gate via
-`bash -c "$CMD"` (so the command grammar matches what users wrote in the bash
-era; bash is available on every supported OS via Git for Windows on Windows),
+Iterates over config.gates[], runs each gate via
+`bash -c "$CMD"` (gate commands are shell snippets; bash is available on
+every supported OS — via Git for Windows on Windows),
 prints a uniform [ok]/[FAIL]/[warn] table, and exits non-zero if any blocking
 gate failed.
 """

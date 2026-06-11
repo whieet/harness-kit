@@ -1,6 +1,6 @@
 """PreToolUse(Edit|Write|MultiEdit) — plan-gate.
 
-Port of scripts/on-pre-edit.sh. When the edited file matches plan.codeGlob
+When the edited file matches plan.codeGlob
 and no active plan covers it, auto-scaffold a plan and inject context.
 Non-blocking — does not override the user's permission flow.
 """
@@ -74,7 +74,7 @@ def run() -> int:
         rel_path = fp
     rel_path = rel_path.replace("\\", "/")
 
-    plan_dir = ctx.cfg_get_str("plan.dir", "docs/exec-plans")
+    plan_dir = ctx.cfg_get_str("plan.dir", "docs/plans")
     active_dir = os.path.join(plan_dir, "active")
 
     # Does any active plan already mention this file?

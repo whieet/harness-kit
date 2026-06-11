@@ -69,9 +69,8 @@ def append_trace(state_dir: str, record: dict[str, Any]) -> None:
     try:
         os.makedirs(state_dir, exist_ok=True)
         with open(path, "a", encoding="utf-8") as fh:
-            # Compact separators match what the bash impl wrote via
-            # `printf '{"ts":"%s",...}'` — preserves byte-level continuity for
-            # any consumer that diffs the trace across upgrades.
+            # Compact separators (no spaces after : and ,) keep byte-level
+            # continuity for any consumer that diffs the trace across upgrades.
             fh.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
     except OSError:
         pass

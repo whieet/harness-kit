@@ -62,7 +62,7 @@ Just declare the project type + which file edits require a plan; everything else
   ],
 
   "plan": {
-    "dir": "docs/exec-plans",            // plan root, with active/ and completed/ under it. Default docs/exec-plans
+    "dir": "docs/plans",            // plan root, with active/ and completed/ under it. Default docs/plans
     "codeGlob": "\\.(ts|tsx)$",          // which file edits require a covering plan (regex). Empty string = plan gate off
     "statusField": "status",             // field name parsed from a plan header for its status. Default status
     "completedValue": "completed",       // status value meaning "done". Default completed
@@ -85,7 +85,7 @@ Just declare the project type + which file edits require a plan; everything else
   },
 
   "metrics": [                           // advisor dashboard: count files by glob
-    { "name": "completed",  "glob": "docs/exec-plans/completed/*.md", "exclude": "gitkeep" },
+    { "name": "completed",  "glob": "docs/plans/completed/*.md", "exclude": "gitkeep" },
     { "name": "components", "glob": "src/components/**/*.{ts,tsx}" }
   ],
 
@@ -150,7 +150,7 @@ Just declare the project type + which file edits require a plan; everything else
 ### `plan` — plan lifecycle
 | Subfield | Type | Default | Purpose |
 | --- | --- | --- | --- |
-| `dir` | string | `docs/exec-plans` | Plan root; `active/` and `completed/` live under it |
+| `dir` | string | `docs/plans` | Plan root; `active/` and `completed/` live under it |
 | `codeGlob` | regex | — | Which file paths require a covering plan. **Empty string = plan gate off** |
 | `template` | string | bundled `plan-template.md` | Plan scaffold template path |
 | `statusField` | string | `status` | Field name parsed for a plan's status |

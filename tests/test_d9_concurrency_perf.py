@@ -93,7 +93,7 @@ def test_concurrent_post_edit_writes_per_session_isolated(tmp_path):
     beta = json.loads((proj / ".harness" / "state" / "loop-beta.json").read_text(encoding="utf-8"))
     # Total writes across both sessions ≥ 2 each (we fired 2 per session, but race
     # might have one read-modify-write hit a stale read — that's an inherent
-    # filesystem race the bash impl ALSO has, so just assert non-zero)
+    # filesystem race under concurrency, so just assert non-zero)
     assert alpha.get("shared.py", 0) >= 1
     assert beta.get("shared.py", 0) >= 1
 

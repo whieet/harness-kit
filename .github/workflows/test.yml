@@ -21,8 +21,6 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # tests/test_parity.py uses `git archive HEAD`
 
       - uses: actions/setup-python@v5
         with:
@@ -41,10 +39,6 @@ jobs:
       - name: Smoke + structure + session-replay e2e (macOS/Windows)
         if: runner.os != 'Linux'
         run: python -m pytest tests/test_smoke.py tests/test_structure.py tests/test_e2e_session.py -v
-
-      - name: Parity tests (macOS — Linux covers them in the full suite; Windows can't)
-        if: runner.os == 'macOS'
-        run: python -m pytest tests/test_parity.py -v
 
       - name: Full deterministic suite incl. d-suites (Ubuntu)
         if: runner.os == 'Linux'
