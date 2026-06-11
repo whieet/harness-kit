@@ -31,6 +31,13 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "scripts"))  # so `from harness import ...` works in-process
 
+# Interpreter warnings are not behavior. The frozen old bash impl embeds python
+# snippets that trip NEW deprecation warnings on newer interpreters (e.g.
+# utcnow() under 3.12 prints to stderr), which would false-fail the old-vs-new
+# stderr parity comparisons. Inherited by every subprocess the tests spawn;
+# does not touch this process's own (already initialized) warning filters.
+os.environ.setdefault("PYTHONWARNINGS", "ignore")
+
 
 def pytest_configure(config):
     # No pytest.ini/pyproject in this repo — markers are registered here.
