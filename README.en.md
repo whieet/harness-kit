@@ -167,7 +167,7 @@ claude plugin validate . --strict    # strict manifest validation, free
 bash scripts/dev-e2e.sh full         # L3+L4: 6 scenarios + the 3-judge audit (real Claude)
 ```
 
-See the [testing guide](./docs/testing.en.md); for the honest comparison against the two-month man-in-the-mirror blueprint, see [benchmark](./docs/benchmark.md).
+See the [testing guide](./docs/testing.en.md).
 
 ## References & further reading
 

@@ -165,7 +165,7 @@ claude plugin validate . --strict    # manifest 严格校验，免费
 bash scripts/dev-e2e.sh full         # L3+L4：6 场景 + 3 评委审计（真实 Claude）
 ```
 
-详见 [测试指南](./docs/testing.md)；与 man-in-the-mirror 两个月实践蓝本的诚实对照见 [蓝本对照](./docs/benchmark.md)。
+详见 [测试指南](./docs/testing.md)。
 
 ## 参考来源
 

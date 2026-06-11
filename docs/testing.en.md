@@ -11,7 +11,7 @@ Verifying harness-kit does not rely on "make a directory → open Claude → ins
 | **L1 unit/parity** | smoke, parity (frozen bash oracle), d-suites (determinism / robustness / parity fuzz / concurrency) | No | push to main / PRs (CI: 3 OS × 2 Python matrix) |
 | **L2 structure + session replay** | `test_structure.py` (cross-file invariants) + `test_e2e_session.py` (S1–S7: replays hook sequences in real-session order, asserting trace/plan/snapshot state evolution) | No | push to main / PRs |
 | **L3 live scenario suite** | `scripts/dev-e2e.sh`: a real headless Claude (plugin loaded via `--plugin-dir`) runs SC-1..SC-6 — one live scenario per core discipline | **Yes** | locally on demand; CI: push to main + daily + dispatch |
-| **L4 conformance audit + blueprint benchmark** | 3 independent AI judges score [`tests/e2e_workflow_rubric.md`](../tests/e2e_workflow_rubric.md) row-by-row with majority vote; [`docs/benchmark.md`](./benchmark.md) compares against the man-in-the-mirror blueprint | **Yes** | with L3 full |
+| **L4 conformance audit** | 3 independent AI judges score [`tests/e2e_workflow_rubric.md`](../tests/e2e_workflow_rubric.md) row-by-row with majority vote, verifying conformance to the official harness-engineering principles | **Yes** | with L3 full |
 
 ## Prerequisites
 
