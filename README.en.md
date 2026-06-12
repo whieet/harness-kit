@@ -123,6 +123,22 @@ After a one-time init, a typical task flows like this (〔auto〕= happens via h
 
 > Steps 1 / 3 / 5 / 7 are fully automatic — you barely think about them; the only commands you actually reach for are `plan` / `verify` / `evaluate` / `advisor`.
 
+## Make it yours — iterate
+
+The flow above is **one default arrangement, not the right answer**. Harness Kit gives you opinionated defaults and a set of individually toggleable building blocks — **the best harness is *grown***, continuously reshaped around your project, your habits, and the model's evolving abilities. Every behavior is configurable and switchable in `.harness/config.json`, and you **don't hand-write it** — just tell Claude Code in plain language.
+
+Treat the reshaping as its own loop:
+
+1. **Run the defaults first** — after `/harness-kit:init`, resist the urge to tune; do a few real tasks under the default guardrails to build intuition and see what actually chafes.
+2. **Observe** — `/harness-kit:advisor` for the maturity phase and unlocked capabilities; `/harness-kit:trace-analyze` for failure patterns (which gates go red, which files churn, whether sessions are imbalanced).
+3. **Reshape** (tell Claude Code in plain language; it edits per the [configuration guide](./docs/configuration.en.md)):
+   - **Tighten when it derails** — AI went off the rails a new way? Add a gate, a layering rule, or a rubric dimension.
+   - **Loosen when it nags** — a gate keeps blocking real work, the loop threshold is too touchy? Turn it off, raise the threshold, or drop `verificationMode` to `advisory`.
+   - **Trim as the model improves** — delete disciplines newer models handle natively; a harness's assumptions go stale, and keeping them only slows you down.
+4. **Scale with maturity** — start light on new projects (plan gate + verification gate are enough); unlock heavier practices (independent `evaluator`, strict mode, auto-dispatched eval) as features pile up. The advisor flags when to level up.
+
+> There's no "correct" harness — only the one that fits this project right now. Harness Kit hands you the building blocks and one default arrangement; you iterate the workflow into its final shape, and it evolves alongside the model.
+
 ## Configuration at a glance
 
 Everything project-specific lives in `.harness/config.json` (committed with your project). **You usually don't hand-write it — just tell Claude Code what you want in plain language** ("add an `npm test` gate", "turn off loop detection", "forbid the UI layer from importing the DB") and it edits the file per the AI-oriented [configuration guide](./docs/configuration.en.md). Key sections:
