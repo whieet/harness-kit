@@ -75,6 +75,15 @@ Harness Kit is built to stop the common ways AI coding goes off the rails:
 /plugin install harness-kit@harness-kit
 ```
 
+> [!IMPORTANT]
+> **When upgrading an existing install, refresh the plugin-marketplace cache first, then reinstall the plugin.** Otherwise Claude Code may keep using an older local cache, so the README describes a new capability but `/harness-kit:init` does not create `CLAUDE.md` / new gates do not appear. Type inside Claude Code:
+> ```text
+> /plugin marketplace update harness-kit
+> /plugin uninstall harness-kit@harness-kit
+> /plugin install harness-kit@harness-kit
+> ```
+> If an existing project was initialized by an older version, re-running `/harness-kit:init` will create the missing `CLAUDE.md`; however, an existing `.harness/config.json` is not overwritten by default. To adopt new preset gates too, back it up first, then run `/harness-kit:init reset`.
+
 **2) Initialize it in your project**
 
 ```text

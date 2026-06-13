@@ -73,6 +73,15 @@ AI 编码常见的几个失控点，正是 Harness Kit 要拦住的：
 /plugin install harness-kit@harness-kit
 ```
 
+> [!IMPORTANT]
+> **升级已有安装时要先刷新插件市场缓存，再重装插件**，否则本机可能继续使用旧版缓存，表现为「README 说有新能力，但 `/harness-kit:init` 没生成 `CLAUDE.md` / 没有新门禁」。在 Claude Code 中执行：
+> ```text
+> /plugin marketplace update harness-kit
+> /plugin uninstall harness-kit@harness-kit
+> /plugin install harness-kit@harness-kit
+> ```
+> 若现有项目已用旧版初始化过，重跑 `/harness-kit:init` 会补生成缺失的 `CLAUDE.md`；但已有 `.harness/config.json` 默认不会被覆盖，想把新预设门禁也写进去需先备份后运行 `/harness-kit:init reset`。
+
 **2) 在你的项目里初始化**
 
 ```text
