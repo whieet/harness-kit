@@ -40,7 +40,7 @@ def _help() -> int:
     sys.stderr.write(
         "Usage:\n"
         "  harness_main.py <hook-event>            # e.g. session-start, pre-edit\n"
-        "  harness_main.py <bin-name> [args]       # e.g. harness-verify, harness-init custom\n"
+        "  harness_main.py <bin-name> [args]       # e.g. harness-verify, harness-init custom --lang en\n"
         "Known hooks:    " + ", ".join(HOOKS) + "\n"
         "Known commands: " + ", ".join(COMMANDS) + "\n"
     )

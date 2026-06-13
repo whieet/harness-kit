@@ -31,14 +31,15 @@ def _resume_block(ctx: HarnessContext) -> str:
     last = snap.get("lastGateResult")
     if not incomplete and last not in ("failed", "advisory_fail"):
         return ""
-    out = ["Resuming — unfinished from before:"]
+    out = [ctx.tr("Resuming — unfinished from before:", "恢复上次未完成的工作：")]
     for p in incomplete:
         out.append(
-            "  - %s: %d/%d DoD" % (p.get("name", "?"), p.get("checked", 0), p.get("total", 0))
+            ctx.tr("  - %s: %d/%d DoD", "  - %s：%d/%d 完成判据")
+            % (p.get("name", "?"), p.get("checked", 0), p.get("total", 0))
         )
     failed_gates = snap.get("recentFailedGates") or []
     if failed_gates:
-        out.append("  - recently failing gates: " + ", ".join(failed_gates))
+        out.append(ctx.tr("  - recently failing gates: ", "  - 最近失败的门禁：") + ", ".join(failed_gates))
     return "\n".join(out)
 
 
@@ -87,31 +88,32 @@ def run() -> int:
     resume = _resume_block(ctx)
 
     parts: list[str] = []
-    parts.append("=== Session Handoff (harness-kit) ===")
+    parts.append(ctx.tr("=== Session Handoff (harness-kit) ===", "=== Session Handoff (harness-kit) / 会话交接 ==="))
+    parts.append(ctx.language_directive())
     parts.append("")
     if advisor_out:
         parts.append(advisor_out)
         parts.append("")
-    parts.append("Git: branch=%s, uncommitted=%d, untracked=%d" % (branch, uncommitted, untracked))
-    parts.append("Recent commits:")
+    parts.append(ctx.tr("Git: branch=%s, uncommitted=%d, untracked=%d", "Git：branch=%s，未提交=%d，未跟踪=%d") % (branch, uncommitted, untracked))
+    parts.append(ctx.tr("Recent commits:", "最近提交："))
     parts.append(recent)
     parts.append("")
-    parts.append("Active plans (%d):" % active_count)
+    parts.append(ctx.tr("Active plans (%d):", "进行中的计划（%d）：") % active_count)
     if active_count > 0:
         for p in plans:
             parts.append("  " + p)
     else:
-        parts.append("  (none — create one before editing planned code)")
+        parts.append(ctx.tr("  (none — create one before editing planned code)", "  （无——编辑受计划管控的代码前请先创建计划）"))
     if key_docs:
         parts.append("")
-        parts.append("Key docs:")
+        parts.append(ctx.tr("Key docs:", "关键文档："))
         parts.append(key_docs)
     if resume:
         parts.append("")
         parts.append(resume)
     parts.append("")
-    parts.append("Harness (auto via plugin hooks — you do not run these): SessionStart handoff;")
-    parts.append("PreToolUse plan-gate; PostToolUse loop-detect; Stop pre-completion verify gate.")
+    parts.append(ctx.tr("Harness (auto via plugin hooks — you do not run these): SessionStart handoff;", "Harness（由插件 hook 自动执行——你不需要手动运行）：SessionStart 会话交接；"))
+    parts.append(ctx.tr("PreToolUse plan-gate; PostToolUse loop-detect; Stop pre-completion verify gate.", "PreToolUse 计划门；PostToolUse 循环检测；Stop 完成前验证门。"))
 
     # Session start supersedes the mid-session re-inject; clear the dirty marker.
     dirty = os.path.join(ctx.state_dir(), "pre-compact.dirty")

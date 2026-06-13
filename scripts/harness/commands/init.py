@@ -6,6 +6,7 @@ Windows ships bash and uses it to run repo hooks too).
 """
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import sys
@@ -16,6 +17,7 @@ from ..context import HarnessContext, load_context
 CUSTOM_CONFIG = """\
 {
   "projectType": "custom",
+  "language": "en",
   "verificationMode": "strict",
   "gates": [
     { "name": "claude-md-budget", "command": "test ! -f CLAUDE.md || test \\"$(wc -l < CLAUDE.md)\\" -le 200 || { echo 'CLAUDE.md exceeds 200 lines — move detail into docs/'; exit 1; }", "blocking": false },
@@ -59,13 +61,34 @@ def _to_posix(path: str) -> str:
     return path.replace("\\", "/")
 
 
-def _write_config(ctx: HarnessContext, ttype: str, force: bool, tpl_root: str) -> None:
+def _set_config_language(ctx: HarnessContext, lang: str) -> bool:
+    cfg = os.path.join(ctx.harness_dir, "config.json")
+    try:
+        with open(cfg, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, json.JSONDecodeError):
+        return False
+    if not isinstance(data, dict):
+        return False
+    if data.get("language") == lang:
+        return False
+    data["language"] = lang
+    util.write_text(cfg, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+    ctx.reload_config()
+    return True
+
+
+def _write_config(ctx: HarnessContext, ttype: str, force: bool, tpl_root: str, lang: str, lang_explicit: bool) -> None:
     cfg = os.path.join(ctx.harness_dir, "config.json")
     if os.path.isfile(cfg) and not force:
-        print("  .harness/config.json exists — keeping (use --force to reset)")
+        if lang_explicit and _set_config_language(ctx, lang):
+            print(f"  updated .harness/config.json language -> {lang}")
+        else:
+            print("  .harness/config.json exists — keeping (use --force to reset)")
         return
     if ttype == "custom":
         util.write_text(cfg, CUSTOM_CONFIG)
+        _set_config_language(ctx, lang)
         print("  wrote .harness/config.json (custom skeleton — edit gates/layeringRules for your stack)")
         return
     src = os.path.join(tpl_root, ttype, "config.json")
@@ -73,11 +96,15 @@ def _write_config(ctx: HarnessContext, ttype: str, force: bool, tpl_root: str) -
         print("  WARN: template missing: %s" % src)
         return
     shutil.copyfile(src, cfg)
+    _set_config_language(ctx, lang)
     print(f"  wrote .harness/config.json ({ttype} preset)")
 
 
-def _write_rubric(ctx: HarnessContext, ttype: str, force: bool, tpl_root: str) -> None:
+def _write_rubric(ctx: HarnessContext, ttype: str, force: bool, tpl_root: str, lang: str) -> None:
     src = os.path.join(tpl_root, ttype, "rubric.md")
+    localized = os.path.join(tpl_root, ttype, f"rubric.{lang}.md")
+    if lang != "en" and os.path.isfile(localized):
+        src = localized
     if not os.path.isfile(src):
         return
     dst = os.path.join(ctx.harness_dir, "rubric.md")
@@ -98,7 +125,10 @@ def _scaffold_plan_dirs(ctx: HarnessContext, tpl_root: str) -> None:
         kp = os.path.join(full, ".gitkeep")
         if not os.path.isfile(kp):
             open(kp, "a", encoding="utf-8").close()
-    tpl_src = os.path.join(tpl_root, "plan-template.md")
+    lang = ctx.language()
+    tpl_src = os.path.join(tpl_root, f"plan-template.{lang}.md") if lang != "en" else os.path.join(tpl_root, "plan-template.md")
+    if not os.path.isfile(tpl_src):
+        tpl_src = os.path.join(tpl_root, "plan-template.md")
     tpl_dst = os.path.join(ctx.project_dir, plan_dir, "_template.md")
     if os.path.isfile(tpl_src) and not os.path.isfile(tpl_dst):
         try:
@@ -166,6 +196,7 @@ def run(argv: list[str]) -> int:
     force = False
     claude_md = True
     lang = "en"
+    lang_explicit = False
     ttype: str | None = None
     i = 0
     while i < len(argv):
@@ -180,8 +211,10 @@ def run(argv: list[str]) -> int:
                 return 2
             i += 1
             lang = argv[i]
+            lang_explicit = True
         elif a.startswith("--lang="):
             lang = a.split("=", 1)[1]
+            lang_explicit = True
         elif a in ("godot", "web", "custom"):
             ttype = a
         else:
@@ -208,12 +241,22 @@ def run(argv: list[str]) -> int:
             return 2
         ttype = detected
 
-    print(f"harness-init: project={project} type={ttype}")
+    configured_lang = ctx.cfg_get_str("language", ctx.cfg_get_str("lang", "")).lower()
+    if not lang_explicit:
+        if configured_lang in ("en", "zh"):
+            lang = configured_lang
+        else:
+            print("harness-init: choose a project language first: pass --lang en or --lang zh")
+            return 2
+
+    print(f"harness-init: project={project} type={ttype} language={lang}")
     os.makedirs(ctx.harness_dir, exist_ok=True)
 
     tpl_root = os.path.join(_plugin_root(), "templates")
-    _write_config(ctx, ttype, force, tpl_root)
-    _write_rubric(ctx, ttype, force, tpl_root)
+    _write_config(ctx, ttype, force, tpl_root, lang, lang_explicit)
+    ctx.reload_config()
+    lang = ctx.language()
+    _write_rubric(ctx, ttype, force, tpl_root, lang)
     _scaffold_plan_dirs(ctx, tpl_root)
     _write_claude_md(ctx, ttype, lang, claude_md, tpl_root)
     _write_state_gitignore(ctx)

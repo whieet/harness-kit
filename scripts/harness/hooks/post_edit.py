@@ -101,10 +101,14 @@ def run() -> int:
 
     lines: list[str] = []
     for fp, c in warnings:
-        lines.append(f"  ⚠️  Loop detection: {fp} edited {c}× this session.")
-        lines.append(
-            "     Consider: (1) re-read the task spec to confirm the goal; "
-            "(2) try a different approach instead of micro-tweaking this file."
-        )
+        if ctx.language() == "zh":
+            lines.append(f"  ⚠️  循环检测：{fp} 本会话已编辑 {c} 次。")
+            lines.append("     建议：(1) 重新阅读任务要求确认目标；(2) 换一种实现思路，而不是继续微调同一文件。")
+        else:
+            lines.append(f"  ⚠️  Loop detection: {fp} edited {c}× this session.")
+            lines.append(
+                "     Consider: (1) re-read the task spec to confirm the goal; "
+                "(2) try a different approach instead of micro-tweaking this file."
+            )
     sys.stderr.write("\n".join(lines) + "\n")
     return 2  # PostToolUse: non-blocking nudge, stderr fed to Claude

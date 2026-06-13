@@ -125,8 +125,9 @@ def test_claude_md_template_placeholders():
 def test_plan_template_placeholders():
     # Must match exactly what pre_edit.py scaffolding substitutes.
     expected = {"TITLE", "STATUS_FIELD", "DATE", "TIMESTAMP", "REL_PATH", "SOURCE"}
-    found = set(_PLACEHOLDER.findall(_read("templates/plan-template.md")))
-    assert found == expected
+    for rel in ("templates/plan-template.md", "templates/plan-template.zh.md"):
+        found = set(_PLACEHOLDER.findall(_read(rel)))
+        assert found == expected, f"{rel}: {found} != {expected}"
 
 
 def test_claude_md_templates_within_budget():
@@ -160,6 +161,7 @@ def test_config_presets_parse_and_conform():
             assert isinstance(gate.get("command"), str) and gate["command"]
         glob = cfg.get("plan", {}).get("codeGlob", "")
         re.compile(glob)  # must be a valid regex (may be empty)
+        assert cfg.get("language") in ("en", "zh")
         assert cfg.get("loopDetection", {}).get("threshold", 1) >= 1
 
 

@@ -1,5 +1,6 @@
 {
   "projectType": "web",
+  "language": "en",
   "verificationMode": "strict",
   "buildCmd": "npm run build",
   "testCmd": "npm test --silent -- --run",

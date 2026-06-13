@@ -88,7 +88,10 @@ def run() -> int:
     status_field = ctx.cfg_get_str("plan.statusField", "status")
     template = ctx.cfg_get_str("plan.template", "")
     if not template:
-        template = os.path.join(_plugin_root(), "templates", "plan-template.md")
+        lang = ctx.language()
+        template = os.path.join(_plugin_root(), "templates", f"plan-template.{lang}.md") if lang != "en" else os.path.join(_plugin_root(), "templates", "plan-template.md")
+        if not os.path.isfile(template):
+            template = os.path.join(_plugin_root(), "templates", "plan-template.md")
     if not os.path.isfile(template):
         return 0  # nothing to scaffold with
 
@@ -104,7 +107,10 @@ def run() -> int:
     plan_file = os.path.join(active_dir, f"auto-{date}-{time_}-{slug}.md").replace("\\", "/")
 
     tpl = util.safe_read(template)
-    source = "plan-gate (auto-created on first edit of `%s` with no covering plan)" % rel_path
+    source = ctx.tr(
+        "plan-gate (auto-created on first edit of `%s` with no covering plan)",
+        "计划门（首次编辑 `%s` 且没有覆盖计划时自动创建）",
+    ) % rel_path
     subs = {
         "TITLE": title,
         "STATUS_FIELD": status_field,
@@ -119,18 +125,28 @@ def run() -> int:
 
     recent_raw = gitutil.log_oneline(3)
     if recent_raw == "(no commits)":
-        recent_block = "  (none)"
+        recent_block = ctx.tr("  (none)", "  （无）")
     else:
         recent_block = util.indent(recent_raw, "  ")
 
-    ctx_text = (
-        f"Auto-created plan: {plan_file}\n"
-        f"No active plan covered `{rel_path}`. A scaffold plan was created — fill in its\n"
-        "Background, Goals, and Steps, and check off the Definition of Done as you work.\n"
-        "The Stop-hook pre-completion gate will verify the DoD before you finish.\n"
-        "\n"
-        "Recent commits:\n"
-        f"{recent_block}"
-    )
+    if ctx.language() == "zh":
+        ctx_text = (
+            f"自动创建计划：{plan_file}\n"
+            f"没有 active plan 覆盖 `{rel_path}`。已创建计划脚手架——请补全背景、目标和步骤，\n"
+            "并在工作过程中勾选完成判据。Stop-hook 完成前验证门会在收工前检查 DoD。\n"
+            "\n"
+            "最近提交：\n"
+            f"{recent_block}"
+        )
+    else:
+        ctx_text = (
+            f"Auto-created plan: {plan_file}\n"
+            f"No active plan covered `{rel_path}`. A scaffold plan was created — fill in its\n"
+            "Background, Goals, and Steps, and check off the Definition of Done as you work.\n"
+            "The Stop-hook pre-completion gate will verify the DoD before you finish.\n"
+            "\n"
+            "Recent commits:\n"
+            f"{recent_block}"
+        )
     util.emit_hook_context("PreToolUse", ctx_text)
     return 0

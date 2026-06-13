@@ -24,21 +24,22 @@ def _build_context(ctx: HarnessContext) -> str:
     except (OSError, json.JSONDecodeError):
         return ""
 
-    parts = ["Harness state carried across compaction:"]
+    parts = [ctx.tr("Harness state carried across compaction:", "跨上下文压缩保留的 Harness 状态：")]
+    parts.append(ctx.language_directive())
     plans = s.get("plans") or []
     for p in plans:
         parts.append(
-            "  - active plan %s: %d/%d DoD checked"
+            ctx.tr("  - active plan %s: %d/%d DoD checked", "  - active plan %s：%d/%d 完成判据已勾选")
             % (p.get("name", "?"), p.get("checked", 0), p.get("total", 0))
         )
     if not plans:
-        parts.append("  - no active plans")
+        parts.append(ctx.tr("  - no active plans", "  - 没有进行中的计划"))
     if s.get("lastGateResult"):
-        parts.append("  - last completion gate: %s" % s["lastGateResult"])
+        parts.append(ctx.tr("  - last completion gate: %s", "  - 上次完成门结果：%s") % s["lastGateResult"])
     failed = s.get("recentFailedGates") or []
     if failed:
-        parts.append("  - recently failing gates: %s" % ", ".join(failed))
-    parts.append("Finish the unchecked DoD items and pass the gates before declaring done.")
+        parts.append(ctx.tr("  - recently failing gates: %s", "  - 最近失败的门禁：%s") % ", ".join(failed))
+    parts.append(ctx.tr("Finish the unchecked DoD items and pass the gates before declaring done.", "宣布完成前，先完成未勾选的完成判据并通过门禁。"))
     return "\n".join(parts)
 
 

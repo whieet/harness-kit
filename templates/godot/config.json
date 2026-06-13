@@ -1,5 +1,6 @@
 {
   "projectType": "godot",
+  "language": "en",
   "verificationMode": "strict",
   "buildCmd": "godot --headless --quit --path .",
   "testCmd": "",

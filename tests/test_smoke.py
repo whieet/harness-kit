@@ -72,8 +72,19 @@ def test_session_start_emits_json(tmp_path):
     assert out["hookSpecificOutput"]["hookEventName"] == "SessionStart"
     ctx = out["hookSpecificOutput"]["additionalContext"]
     assert "=== Session Handoff (harness-kit) ===" in ctx
+    assert "Language preference: English" in ctx
     assert "Git: branch=" in ctx
     assert "Active plans" in ctx
+
+
+def test_session_start_uses_zh_language_directive(tmp_path):
+    proj = make_project(tmp_path, extra_config={"language": "zh"})
+    r = run_dispatch("session-start", proj, stdin=json.dumps({"cwd": str(proj)}))
+    assert r.returncode == 0, r.stderr
+    out = json.loads(r.stdout.strip())
+    ctx = out["hookSpecificOutput"]["additionalContext"]
+    assert "语言偏好：中文" in ctx
+    assert "Git：branch=" in ctx
 
 
 def test_pre_edit_scaffolds(tmp_path):
@@ -95,6 +106,27 @@ def test_pre_edit_scaffolds(tmp_path):
     body = plans[0].read_text(encoding="utf-8")
     assert "src/thing.py" in body
     assert "Definition of Done" in body
+
+
+def test_pre_edit_scaffolds_zh_template(tmp_path):
+    proj = make_project(tmp_path, extra_config={"language": "zh", "plan": {"codeGlob": r"\.py$"}})
+    (proj / "src").mkdir()
+    target = proj / "src" / "thing.py"
+    target.write_text("a = 1\n", encoding="utf-8")
+    payload = json.dumps({
+        "cwd": str(proj),
+        "tool_name": "Edit",
+        "tool_input": {"file_path": str(target)},
+    })
+    r = run_dispatch("pre-edit", proj, stdin=payload)
+    assert r.returncode == 0, r.stderr
+    out = json.loads(r.stdout.strip())
+    assert "自动创建计划" in out["hookSpecificOutput"]["additionalContext"]
+    plans = list((proj / "docs" / "plans" / "active").glob("auto-*.md"))
+    assert len(plans) == 1
+    body = plans[0].read_text(encoding="utf-8")
+    assert "## 背景" in body
+    assert "## 完成判据" in body
 
 
 def test_pre_edit_respects_existing_plan(tmp_path):
@@ -226,6 +258,26 @@ def test_plan_approved_writes_file(tmp_path):
     assert len(files) == 1
     assert "adopt-foo" in files[0].name
     assert "# Adopt Foo" in files[0].read_text(encoding="utf-8")
+
+
+def test_plan_approved_uses_zh_wrapper(tmp_path):
+    proj = make_project(tmp_path, extra_config={"language": "zh"})
+    plan = "# 采用 Foo\n\n采用 Foo 框架。\n"
+    payload = json.dumps({
+        "cwd": str(proj),
+        "tool_name": "ExitPlanMode",
+        "tool_input": {"plan": plan},
+    })
+    r = run_dispatch("plan-approved", proj, stdin=payload)
+    assert r.returncode == 0
+    files = [
+        p for p in (proj / "docs" / "plans" / "active").iterdir()
+        if p.suffix == ".md" and p.name != ".gitkeep"
+    ]
+    assert len(files) == 1
+    body = files[0].read_text(encoding="utf-8")
+    assert "## 进度日志" in body
+    assert "## 完成判据" in body
 
 
 def test_verify_no_gates(tmp_path):
@@ -360,7 +412,7 @@ def test_init_custom(tmp_path):
     env["HARNESS_KIT_ROOT"] = str(REPO_ROOT)
     env["CLAUDE_PROJECT_DIR"] = str(proj)
     r = subprocess.run(
-        [sys.executable, str(REPO_ROOT / "scripts" / "harness_main.py"), "harness-init", "custom"],
+        [sys.executable, str(REPO_ROOT / "scripts" / "harness_main.py"), "harness-init", "custom", "--lang", "en"],
         cwd=str(proj),
         capture_output=True,
         text=True,
@@ -384,7 +436,7 @@ def _fresh_proj(tmp_path):
 
 def test_init_writes_claude_md(tmp_path):
     proj = _fresh_proj(tmp_path)
-    r = run_dispatch("harness-init", proj, extra_args=["custom"])
+    r = run_dispatch("harness-init", proj, extra_args=["custom", "--lang", "en"])
     assert r.returncode == 0, r.stderr
     assert "wrote CLAUDE.md" in r.stdout
     body = (proj / "CLAUDE.md").read_text(encoding="utf-8")
@@ -397,7 +449,7 @@ def test_init_writes_claude_md(tmp_path):
 def test_init_keeps_existing_claude_md(tmp_path):
     proj = _fresh_proj(tmp_path)
     (proj / "CLAUDE.md").write_text("# mine\n", encoding="utf-8")
-    for args in (["custom"], ["custom", "--force"]):
+    for args in (["custom", "--lang", "en"], ["custom", "--force", "--lang", "en"]):
         r = run_dispatch("harness-init", proj, extra_args=args)
         assert r.returncode == 0, r.stderr
         assert "CLAUDE.md exists — keeping" in r.stdout
@@ -406,20 +458,64 @@ def test_init_keeps_existing_claude_md(tmp_path):
 
 def test_init_no_claude_md_flag(tmp_path):
     proj = _fresh_proj(tmp_path)
-    r = run_dispatch("harness-init", proj, extra_args=["custom", "--no-claude-md"])
+    r = run_dispatch("harness-init", proj, extra_args=["custom", "--lang", "en", "--no-claude-md"])
     assert r.returncode == 0, r.stderr
     assert "CLAUDE.md skipped" in r.stdout
     assert not (proj / "CLAUDE.md").exists()
+
+
+def test_init_requires_language_for_new_config(tmp_path):
+    proj = _fresh_proj(tmp_path)
+    r = run_dispatch("harness-init", proj, extra_args=["custom"])
+    assert r.returncode == 2
+    assert "choose a project language" in r.stdout
+    assert not (proj / ".harness" / "config.json").exists()
+
+
+def test_init_default_language_en(tmp_path):
+    proj = _fresh_proj(tmp_path)
+    r = run_dispatch("harness-init", proj, extra_args=["custom", "--lang", "en"])
+    assert r.returncode == 0, r.stderr
+    cfg = json.loads((proj / ".harness" / "config.json").read_text(encoding="utf-8"))
+    assert cfg["language"] == "en"
 
 
 def test_init_lang_zh(tmp_path):
     proj = _fresh_proj(tmp_path)
     r = run_dispatch("harness-init", proj, extra_args=["custom", "--lang", "zh"])
     assert r.returncode == 0, r.stderr
+    cfg = json.loads((proj / ".harness" / "config.json").read_text(encoding="utf-8"))
+    assert cfg["language"] == "zh"
     body = (proj / "CLAUDE.md").read_text(encoding="utf-8")
     assert "项目章程" in body
     assert "harness-kit:claude-md" in body
     assert "{{" not in body
+    assert "## 背景" in (proj / "docs" / "plans" / "_template.md").read_text(encoding="utf-8")
+
+
+def test_init_lang_zh_uses_localized_web_rubric(tmp_path):
+    proj = _fresh_proj(tmp_path)
+    r = run_dispatch("harness-init", proj, extra_args=["web", "--lang", "zh"])
+    assert r.returncode == 0, r.stderr
+    rubric = (proj / ".harness" / "rubric.md").read_text(encoding="utf-8")
+    assert "评估 Rubric" in rubric
+    assert "Web 前端" in rubric
+
+
+def test_init_lang_update_keeps_existing_config(tmp_path):
+    proj = _fresh_proj(tmp_path)
+    r = run_dispatch("harness-init", proj, extra_args=["custom", "--lang", "en"])
+    assert r.returncode == 0, r.stderr
+    cfg_path = proj / ".harness" / "config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    cfg["customMarker"] = "keep-me"
+    cfg_path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    r = run_dispatch("harness-init", proj, extra_args=["custom", "--lang", "zh"])
+    assert r.returncode == 0, r.stderr
+    cfg2 = json.loads(cfg_path.read_text(encoding="utf-8"))
+    assert cfg2["language"] == "zh"
+    assert cfg2["customMarker"] == "keep-me"
 
 
 def test_init_lang_invalid(tmp_path):
@@ -433,7 +529,7 @@ def test_init_respects_dot_claude_dir(tmp_path):
     proj = _fresh_proj(tmp_path)
     (proj / ".claude").mkdir()
     (proj / ".claude" / "CLAUDE.md").write_text("# nested\n", encoding="utf-8")
-    r = run_dispatch("harness-init", proj, extra_args=["custom"])
+    r = run_dispatch("harness-init", proj, extra_args=["custom", "--lang", "en"])
     assert r.returncode == 0, r.stderr
     assert "CLAUDE.md exists — keeping" in r.stdout
     assert not (proj / "CLAUDE.md").exists()
@@ -442,7 +538,7 @@ def test_init_respects_dot_claude_dir(tmp_path):
 def test_init_imports_agents_md(tmp_path):
     proj = _fresh_proj(tmp_path)
     (proj / "AGENTS.md").write_text("# agents\n", encoding="utf-8")
-    r = run_dispatch("harness-init", proj, extra_args=["custom"])
+    r = run_dispatch("harness-init", proj, extra_args=["custom", "--lang", "en"])
     assert r.returncode == 0, r.stderr
     body = (proj / "CLAUDE.md").read_text(encoding="utf-8")
     assert body.splitlines()[0] == "@AGENTS.md"
@@ -454,7 +550,7 @@ def test_init_godot_claude_md_gate_passes(tmp_path):
     for extra in ([], ["--no-claude-md"]):
         proj = _fresh_proj(tmp_path / ("with" if not extra else "without"))
         (proj / "project.godot").write_text("[application]\n", encoding="utf-8")
-        r = run_dispatch("harness-init", proj, extra_args=["godot"] + extra)
+        r = run_dispatch("harness-init", proj, extra_args=["godot", "--lang", "en"] + extra)
         assert r.returncode == 0, r.stderr
         v = run_dispatch("harness-verify", proj)
         assert "[ok]   claude-md-budget" in v.stdout, v.stdout

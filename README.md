@@ -88,7 +88,7 @@ AI 编码常见的几个失控点，正是 Harness Kit 要拦住的：
 /harness-kit:init
 ```
 
-选择项目类型（`godot` / `web` / `custom`），它会脚手架生成 `.harness/config.json` + `rubric.md` + 计划目录，并启用 git pre-commit 门；若项目尚无 `CLAUDE.md`，再生成一份 ToC 式工程章程（铁律 / 工作流 / 仓库地图 / 验证 SOP），随后做一次 harness 范围的 codebase 分析填掉占位并校准配置。已有 `CLAUDE.md` 则绝不触碰（连 `--force` 也不会）。中文章程传 `--lang zh`，不要章程传 `--no-claude-md`。幂等；想重置配置传 `reset`。
+选择项目类型（`godot` / `web` / `custom`）和项目语言（`en` / `zh`；写入 `.harness/config.json` 的 `language`，后续可改），它会脚手架生成 `.harness/config.json` + `rubric.md` + 计划目录，并启用 git pre-commit 门；若项目尚无 `CLAUDE.md`，再按所选语言生成一份 ToC 式工程章程（铁律 / 工作流 / 仓库地图 / 验证 SOP），随后做一次 harness 范围的 codebase 分析填掉占位并校准配置。已有 `CLAUDE.md` 则绝不触碰（连 `--force` 也不会）。不要章程传 `--no-claude-md`。语言偏好会用于 AI 交互与后续生成文档内容；文件/目录/命令/配置键不翻译。幂等；想重置配置传 `reset`。
 
 **3) 正常开发** —— PreToolUse / PostToolUse 等 hook 自动护栏（计划门、循环检测、追踪），你无需手动触发。
 
@@ -98,7 +98,7 @@ AI 编码常见的几个失控点，正是 Harness Kit 要拦住的：
 
 | 命令 | 作用 |
 | --- | --- |
-| `/harness-kit:init` | 初始化：识别 / 询问项目类型，脚手架配置 + rubric + 计划骨架 +（缺则建的）ToC 式 CLAUDE.md 章程，启用 pre-commit 门，并分析 codebase 填占位、校准配置 |
+| `/harness-kit:init` | 初始化：识别 / 询问项目类型与语言偏好，脚手架配置 + rubric + 计划骨架 +（缺则建的）所选语言 ToC 式 CLAUDE.md 章程，启用 pre-commit 门，并分析 codebase 填占位、校准配置 |
 | `/harness-kit:plan` | 启动 Plan→Build→Verify→Done 工作流；批准后由 hook 把计划落盘到计划目录 |
 | `/harness-kit:verify` | 手动运行验证门编排器，逐门报告通过 / 失败（Stop 门的手动版）|
 | `/harness-kit:advisor` | 展示当前成熟度阶段、背后的工件指标，以及已解锁的 harness 能力 |
@@ -153,6 +153,7 @@ flowchart LR
 | 配置段 | 含义 |
 | --- | --- |
 | `gates[]` | 有序的验证门，由 `harness-verify` 执行（取代写死的校验步骤）|
+| `language` | 项目语言偏好：AI 交互与生成文档内容使用 `en` / `zh`；文件名、目录名、命令名、配置键不翻译 |
 | `verifyCmd` / `buildCmd` / `testCmd` | 验证 / 构建 / 测试入口命令 |
 | `layeringRules[]` | 依赖方向约束（作用域 glob + 禁止正则 + 修复提示）|
 | `plan` | 计划生命周期：目录、哪些代码改动需要计划（`codeGlob`）、状态字段、模板 |

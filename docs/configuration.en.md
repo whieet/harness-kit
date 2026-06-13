@@ -40,6 +40,7 @@ Just declare the project type + which file edits require a plan; everything else
 ```jsonc
 {
   "projectType": "web",                  // godot | web | custom; only affects the init scaffolder & advisor copy
+  "language": "en",                      // en | zh; language for AI interaction + generated docs, not file/dir/command/config keys
   "verificationMode": "strict",          // strict = a failure blocks completion; advisory = warn only. Default strict
 
   "verifyCmd": "harness-verify",         // verify entrypoint (shared by the Stop hook / pre-commit / /verify). Default as shown
@@ -126,6 +127,7 @@ Just declare the project type + which file edits require a plan; everything else
 | Field | Type | Default | Purpose |
 | --- | --- | --- | --- |
 | `projectType` | `"godot"｜"web"｜"custom"` | — | Preset identity; only affects the init scaffolder & advisor copy — scripts never branch on it |
+| `language` | `"en"｜"zh"` | `en` | Project language preference: AI interaction and generated docs use this language; file/dir/command/config keys stay untranslated. Edit this field later to switch |
 | `verificationMode` | `"advisory"｜"strict"` | `strict` | Stop-gate strictness: strict blocks completion on failure; advisory warns only |
 | `verifyCmd` | string | `harness-verify` | Verify entrypoint, shared by the Stop hook / git pre-commit / `/harness-kit:verify` |
 | `buildCmd` | string | — | Build/compile command, surfaced by the advisor & checklist |
@@ -236,6 +238,7 @@ Keys are rubric dimension names (e.g. `functionality` / `visual` / `integration`
 | "Move where plans are stored" | Change `plan.dir` |
 | "Make the evaluator verify a dimension with some tool" | Add `"<dimension>": "<command or MCP tool>"` to `verificationRecipe` |
 | "Loosen everything to warn-only" | `verificationMode = "advisory"` |
+| "Use Chinese/English when talking to me, and write docs in that language" | Set `language = "zh"` or `"en"`; do not rename file/dir/command/config keys |
 
 ---
 

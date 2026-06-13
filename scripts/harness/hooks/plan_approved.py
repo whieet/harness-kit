@@ -64,7 +64,34 @@ def run() -> int:
     title = m.group(1).strip() if m else "Untitled plan"
     slug = _make_slug(title)
 
-    body = f"""# {title}
+    if ctx.language() == "zh":
+        body = f"""# {title}
+
+- **{status_field}**: active
+- **created**: {date}
+- **source**: Claude Code plan mode (ExitPlanMode) — persisted by harness-kit
+
+---
+
+{plan}
+
+---
+
+## 进度日志
+
+- `{date}` — 计划已批准并写入 active/
+
+## 决策日志
+
+## 完成判据
+
+- [ ] 所有步骤已验证
+- [ ] `harness-verify` 退出码为 0
+- [ ] 如影响文档，文档已更新
+- [ ] 本计划已移入 completed/ 目录
+"""
+    else:
+        body = f"""# {title}
 
 - **{status_field}**: active
 - **created**: {date}
@@ -92,5 +119,5 @@ def run() -> int:
 
     path = os.path.join(active_dir, slug + ".md")
     util.write_text(path, body)
-    sys.stderr.write("[harness-kit] approved plan written to %s\n" % path)
+    sys.stderr.write(ctx.tr("[harness-kit] approved plan written to %s\n", "[harness-kit] 已批准计划写入 %s\n") % path)
     return 0

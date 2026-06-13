@@ -40,6 +40,7 @@
 ```jsonc
 {
   "projectType": "web",                  // godot | web | custom，仅影响 init 脚手架与 advisor 文案
+  "language": "zh",                      // en | zh，AI 交互与生成文档内容语言；不翻译文件/目录/命令/配置键
   "verificationMode": "strict",          // strict=不过则拦截收工；advisory=只告警。默认 strict
 
   "verifyCmd": "harness-verify",         // 验证入口（Stop hook / pre-commit / /verify 共用），默认即此
@@ -126,6 +127,7 @@
 | 字段 | 类型 | 默认 | 作用 |
 | --- | --- | --- | --- |
 | `projectType` | `"godot"｜"web"｜"custom"` | — | 预设身份，仅影响 init 脚手架与 advisor 文案，脚本逻辑不依赖它 |
+| `language` | `"en"｜"zh"` | `en` | 项目语言偏好：AI 交互与生成文档内容使用该语言；文件/目录/命令/配置键不翻译。后续可直接改此字段 |
 | `verificationMode` | `"advisory"｜"strict"` | `strict` | Stop 验证门严格度：strict 不过则拦截收工；advisory 只告警 |
 | `verifyCmd` | string | `harness-verify` | 验证入口，Stop hook / git pre-commit / `/harness-kit:verify` 共用 |
 | `buildCmd` | string | — | 构建 / 编译命令，advisor 与检查清单会展示 |
@@ -236,6 +238,7 @@
 | 「换计划存放目录」 | 改 `plan.dir` |
 | 「让评估用某工具验证某维度」 | 在 `verificationRecipe` 加 `"<维度>": "<命令或 MCP 工具>"` |
 | 「彻底放松，只告警不拦截」 | `verificationMode = "advisory"` |
+| 「以后用中文/英文和我沟通，文档也用这个语言」 | 改 `language = "zh"` 或 `"en"`；不要改文件/目录/命令/配置键名 |
 
 ---
 

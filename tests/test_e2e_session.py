@@ -190,7 +190,7 @@ def test_s6_init_to_verify_green(tmp_path):
         subprocess.run(["git", "-C", str(proj), "config", k, v], check=True)
     (proj / "package.json").write_text('{ "name": "x", "version": "0.0.0" }\n', encoding="utf-8")
 
-    r = run_dispatch("harness-init", proj)  # web auto-detected from package.json
+    r = run_dispatch("harness-init", proj, extra_args=["--lang", "en"])  # web auto-detected from package.json
     assert r.returncode == 0, r.stdout + r.stderr
     assert "type=web" in r.stdout
     for rel in (".harness/config.json", ".harness/rubric.md", "CLAUDE.md",

@@ -74,7 +74,7 @@ new_proj() {
 
 pre_init() { # <proj> <type> — deterministic scaffold, no model involved
   (cd "$1" && HARNESS_KIT_ROOT="$KIT" CLAUDE_PROJECT_DIR="$1" \
-    $PY "$KIT/scripts/harness_main.py" harness-init "$2" --no-claude-md >/dev/null)
+    $PY "$KIT/scripts/harness_main.py" harness-init "$2" --lang en --no-claude-md >/dev/null)
 }
 
 tighten() { # <proj> <codeGlob> <loopThreshold> <gatesJson>

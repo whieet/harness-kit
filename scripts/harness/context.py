@@ -140,6 +140,26 @@ class HarnessContext:
             return str(v)
         return json.dumps(v, ensure_ascii=False)
 
+    def language(self) -> str:
+        """Project language preference for user-facing text and generated docs."""
+        raw = self.cfg_get_str("language", self.cfg_get_str("lang", "en")).lower()
+        return raw if raw in ("en", "zh") else "en"
+
+    def language_directive(self) -> str:
+        if self.language() == "zh":
+            return (
+                "语言偏好：中文。请使用中文与用户交互，并用中文编写生成的文档内容，"
+                "除非用户明确要求其他语言。不要翻译文件名、目录名、命令名或配置键。"
+            )
+        return (
+            "Language preference: English. Respond to the user and write generated "
+            "documentation in English unless the user explicitly requests otherwise. "
+            "Do not translate file/directory names, command names, or config keys."
+        )
+
+    def tr(self, en: str, zh: str) -> str:
+        return zh if self.language() == "zh" else en
+
     def cap_enabled(self, name: str) -> bool:
         """Stable caps default ON; experimental caps default OFF."""
         caps = self.config.get("enabledCapabilities") or {}

@@ -90,7 +90,7 @@ Harness Kit is built to stop the common ways AI coding goes off the rails:
 /harness-kit:init
 ```
 
-Pick a project type (`godot` / `web` / `custom`). It scaffolds `.harness/config.json` + `rubric.md` + a plan directory and enables the git pre-commit gate; if the project has no `CLAUDE.md` yet, it also scaffolds a ToC-style project constitution (iron laws / workflow / repo map / verification SOP), then runs a harness-scoped codebase analysis to fill in the blanks and tune the config. An existing `CLAUDE.md` is never touched (not even by `--force`). Pass `--lang zh` for the Chinese constitution, `--no-claude-md` to skip it. Idempotent; pass `reset` to overwrite the config.
+Pick a project type (`godot` / `web` / `custom`) and project language (`en` / `zh`; persisted as `language` in `.harness/config.json`, editable later). It scaffolds `.harness/config.json` + `rubric.md` + a plan directory and enables the git pre-commit gate; if the project has no `CLAUDE.md` yet, it also scaffolds a ToC-style project constitution in the selected language (iron laws / workflow / repo map / verification SOP), then runs a harness-scoped codebase analysis to fill in the blanks and tune the config. An existing `CLAUDE.md` is never touched (not even by `--force`). Pass `--no-claude-md` to skip it. The language preference drives AI interaction and future generated docs; file/directory names, command names, and config keys stay untranslated. Idempotent; pass `reset` to overwrite the config.
 
 **3) Code as usual** — PreToolUse / PostToolUse hooks apply guardrails automatically (plan gate, loop detection, tracing); nothing to trigger manually.
 
@@ -100,7 +100,7 @@ Pick a project type (`godot` / `web` / `custom`). It scaffolds `.harness/config.
 
 | Command | What it does |
 | --- | --- |
-| `/harness-kit:init` | Initialize: detect / ask project type, scaffold config + rubric + plan skeleton + a ToC-style CLAUDE.md constitution (only when absent), enable the pre-commit gate, then analyze the codebase to fill in the blanks and tune the config |
+| `/harness-kit:init` | Initialize: detect / ask project type and language preference, scaffold config + rubric + plan skeleton + a ToC-style CLAUDE.md constitution in the selected language (only when absent), enable the pre-commit gate, then analyze the codebase to fill in the blanks and tune the config |
 | `/harness-kit:plan` | Start the Plan→Build→Verify→Done workflow; on approval a hook persists the plan to the plan directory |
 | `/harness-kit:verify` | Run the verification-gate orchestrator and report per-gate pass / fail (manual counterpart to the Stop gate) |
 | `/harness-kit:advisor` | Show the current maturity phase, the artifact metrics behind it, and which harness capabilities are unlocked |
@@ -155,6 +155,7 @@ Everything project-specific lives in `.harness/config.json` (committed with your
 | Section | Meaning |
 | --- | --- |
 | `gates[]` | Ordered verification gates run by `harness-verify` (replaces hardcoded steps) |
+| `language` | Project language preference: AI interaction and generated docs use `en` / `zh`; file names, directory names, command names, and config keys stay untranslated |
 | `verifyCmd` / `buildCmd` / `testCmd` | Verify / build / test entrypoint commands |
 | `layeringRules[]` | Dependency-direction constraints (scope glob + forbidden regex + remediation hint) |
 | `plan` | Plan lifecycle: directory, which edits require a plan (`codeGlob`), status field, template |

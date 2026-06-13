@@ -11,6 +11,13 @@
       "description": "Preset identity. Only affects the init scaffolder and advisor copy; the bundled scripts never branch on it.",
       "examples": ["web", "godot", "custom"]
     },
+    "language": {
+      "type": "string",
+      "enum": ["en", "zh"],
+      "default": "en",
+      "description": "Project language preference. Harness Kit uses it for AI-facing guidance and generated document content. File/directory names, command names, and config keys stay untranslated.",
+      "examples": ["en", "zh"]
+    },
     "verificationMode": {
       "type": "string",
       "enum": ["advisory", "strict"],

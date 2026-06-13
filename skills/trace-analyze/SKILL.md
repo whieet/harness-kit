@@ -9,7 +9,9 @@ Surface harness-level failure patterns and suggest tuning.
 
 ## Steps
 
-1. Run it:
+1. Read `.harness/config.json` first and follow its `language` preference when explaining findings and proposed tuning. Do not translate file/directory names, command names, or config keys.
+
+2. Run it:
    ```bash
    harness-trace-analyze
    ```
@@ -17,9 +19,9 @@ Surface harness-level failure patterns and suggest tuning.
    state (`.harness/state/trace.jsonl` + `loop-*.json`) and reports session counts,
    completion-gate pass/fail rate, most-churned files, and flagged signals.
 
-2. **Interpret** the signals and propose concrete harness tuning, e.g.:
+3. **Interpret** the signals and propose concrete harness tuning, e.g.:
    - `high_churn` on a file → the loop-detection threshold may be too high, or a gate is missing for that area.
    - `verify_failure_rate` high → gates are catching real problems late; suggest tighter incremental verification or an earlier `/harness-kit:verify` habit.
    - `session_imbalance` → sessions ending abnormally; check for crashes or premature exits.
 
-3. This is the "harness evolves" loop: the goal is to read the trace, then adjust `.harness/config.json` (thresholds, gates, phases) — not to over-fit. Recommend changes; let the user decide.
+4. This is the "harness evolves" loop: the goal is to read the trace, then adjust `.harness/config.json` (thresholds, gates, phases) — not to over-fit. Recommend changes; let the user decide.
